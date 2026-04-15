@@ -14,12 +14,14 @@
     "@dnd-kit/modifiers": "^9.0.0",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
+    "@gsap/react": "^2.1.2",
     "@tailwindcss/postcss": "^4.2.2",
     "@tanstack/react-table": "^8.21.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "gsap": "^3.15.0",
     "lucide-react": "^1.8.0",
-    "next": "14.2.35",
+    "next": "^15.5.15",
     "next-themes": "^0.4.6",
     "react": "^18",
     "react-dom": "^18",
@@ -36,10 +38,16 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "autoprefixer": "^10.0.1",
-    "eslint": "^8",
-    "eslint-config-next": "14.2.35",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^15.5.15",
     "postcss": "^8",
     "tailwindcss": "^4.2.2",
     "typescript": "^5"
+  },
+  "overrides": {
+    "glob": "^10.5.0",
+    "rimraf": "^5.0.10",
+    "@humanwhocodes/config-array": "npm:@eslint/config-array@^0.20.0",
+    "@humanwhocodes/object-schema": "npm:@eslint/object-schema@^2.1.6"
   }
 }

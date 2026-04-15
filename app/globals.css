@@ -11,6 +11,11 @@
   --color-cream: #f8f5f2;
   --color-sage: #c2d8c4;
   --color-ink: #222222;
+  --color-teal: #2ba484;
+
+  /* Easing curves (Emil) */
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
 }
 
 @layer base {
