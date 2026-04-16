@@ -17,14 +17,19 @@ export function LoginVisual() {
       const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
       if (reduce) return
 
-      gsap.from('[data-visual-item]', {
-        opacity: 0,
-        y: 12,
-        duration: 0.6,
-        ease: 'power3.out',
-        stagger: 0.08,
-        delay: 0.1,
-      })
+      gsap.fromTo(
+        '[data-visual-item]',
+        { opacity: 0, y: 12 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.6,
+          ease: 'power3.out',
+          stagger: 0.08,
+          delay: 0.1,
+          clearProps: 'opacity,transform',
+        },
+      )
     },
     { scope: container },
   )

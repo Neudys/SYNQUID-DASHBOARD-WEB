@@ -30,13 +30,18 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
       const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
       if (reduce) return
 
-      gsap.from('[data-form-item]', {
-        opacity: 0,
-        y: 10,
-        duration: 0.5,
-        ease: 'power3.out',
-        stagger: 0.06,
-      })
+      gsap.fromTo(
+        '[data-form-item]',
+        { opacity: 0, y: 10 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.5,
+          ease: 'power3.out',
+          stagger: 0.06,
+          clearProps: 'opacity,transform',
+        },
+      )
     },
     { scope: container },
   )
@@ -144,12 +149,12 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
           type="submit"
           disabled={loading}
           data-form-item
-          className="group relative inline-flex h-11 w-full cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg bg-primary text-sm font-medium text-primary-foreground shadow-sm transition-all duration-200 ease-out hover:bg-primary/90 hover:shadow-md active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-70 disabled:active:scale-100"
+          className="group bg-[#299679] text-white relative inline-flex h-11 w-full cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg bg-primary text-sm font-medium text-primary-foreground shadow-sm transition-all duration-200 ease-out hover:bg-primary/90 hover:shadow-md active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-70 disabled:active:scale-100"
         >
           {loading ? (
             <>
               <Loader2Icon className="size-4 animate-spin" aria-hidden="true" />
-              <span>Signing in…</span>
+              <span className=''>Signing in…</span>
             </>
           ) : (
             <span>Sign in</span>
