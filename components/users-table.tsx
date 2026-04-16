@@ -1,6 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import gsap from 'gsap'
+import { useGSAP } from '@gsap/react'
 import {
   Table,
   TableBody,
@@ -12,7 +14,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Dialog,
@@ -29,8 +30,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { PlusIcon, PencilIcon, TrashIcon } from 'lucide-react'
+import { PlusIcon, PencilIcon, TrashIcon, UsersIcon } from 'lucide-react'
 import { API } from '@/lib/endpoints'
+import { DURATION, EASE, STAGGER, prefersReducedMotion } from '@/lib/animations'
+
+gsap.registerPlugin(useGSAP)
 
 interface User {
   id: string
@@ -41,7 +45,23 @@ interface User {
 
 const EMPTY: User = { id: '', name: '', email: '', role: 'employee' }
 
+const roleStyles: Record<string, string> = {
+  admin: 'bg-primary/12 text-primary',
+  manager: 'bg-teal/15 text-teal',
+  employee: 'bg-sage/40 text-forest',
+}
+
+function getInitials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((n) => n[0]?.toUpperCase() ?? '')
+    .join('') || '?'
+}
+
 export function UsersTable() {
+  const container = useRef<HTMLDivElement>(null)
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -60,7 +80,46 @@ export function UsersTable() {
     }
   }, [])
 
-  useEffect(() => { fetchUsers() }, [fetchUsers])
+  useEffect(() => {
+    fetchUsers()
+  }, [fetchUsers])
+
+  useGSAP(
+    () => {
+      if (prefersReducedMotion()) return
+      gsap.fromTo(
+        '[data-surface]',
+        { opacity: 0, y: 12 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: DURATION.entrance,
+          ease: EASE.out,
+          clearProps: 'opacity,transform',
+        },
+      )
+    },
+    { scope: container },
+  )
+
+  useGSAP(
+    () => {
+      if (prefersReducedMotion() || loading) return
+      gsap.fromTo(
+        '[data-row]',
+        { opacity: 0, y: 6 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: DURATION.standard,
+          ease: EASE.out,
+          stagger: STAGGER.tight,
+          clearProps: 'opacity,transform',
+        },
+      )
+    },
+    { scope: container, dependencies: [loading, users] },
+  )
 
   function openCreate() {
     setEditing(EMPTY)
@@ -109,93 +168,121 @@ export function UsersTable() {
     }
   }
 
-  const roleColor: Record<string, string> = {
-    admin: 'bg-forest/15 text-forest border-0',
-    manager: 'bg-sage/60 text-ink border-0',
-    employee: 'bg-muted text-muted-foreground border-0',
-  }
-
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          {users.length} user{users.length !== 1 ? 's' : ''}
-        </p>
+    <div ref={container} className="flex flex-col gap-5">
+      {/* Toolbar */}
+      <section
+        data-surface
+        className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-linear-to-r from-secondary/40 via-card/70 to-primary/5 px-5 py-4 backdrop-blur-sm"
+      >
+        <div className="flex items-center gap-3">
+          <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <UsersIcon className="size-4" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground">
+              {users.length} user{users.length !== 1 ? 's' : ''}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Grant access by role: admin, manager, employee.
+            </p>
+          </div>
+        </div>
         <Button
-          className="bg-forest hover:bg-forest/90 text-cream gap-2"
+          className="cursor-pointer gap-2 bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-transform duration-150 ease-out"
           onClick={openCreate}
         >
           <PlusIcon className="size-4" />
           New User
         </Button>
-      </div>
+      </section>
 
-      <div className="rounded-lg border border-sage overflow-hidden">
+      {/* Table surface */}
+      <section
+        data-surface
+        className="overflow-hidden rounded-xl border border-border/60 bg-card/80 backdrop-blur-sm"
+      >
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/40">
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+            <TableRow className="hover:bg-transparent border-border/40">
+              <TableHead className="text-xs uppercase tracking-wider">Name</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider">Email</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider">Role</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               Array.from({ length: 4 }).map((_, i) => (
-                <TableRow key={i}>
+                <TableRow key={i} className="border-border/40">
                   {Array.from({ length: 4 }).map((__, j) => (
-                    <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
+                    <TableCell key={j}>
+                      <Skeleton className="h-4 w-full" />
+                    </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : users.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={4} className="py-10 text-center text-muted-foreground text-sm">
-                  No users found. Add one to get started.
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={4} className="py-12 text-center text-sm text-muted-foreground">
+                  No users yet. Add one to get started.
                 </TableCell>
               </TableRow>
             ) : (
-              users.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell className="font-medium">{user.name}</TableCell>
-                  <TableCell className="text-muted-foreground">{user.email}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="secondary"
-                      className={roleColor[user.role?.toLowerCase() ?? 'employee'] ?? 'bg-muted text-muted-foreground border-0'}
-                    >
-                      {user.role ?? 'employee'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openEdit(user)}
-                        title="Edit"
+              users.map((user) => {
+                const roleKey = user.role?.toLowerCase() ?? 'employee'
+                return (
+                  <TableRow
+                    key={user.id}
+                    data-row
+                    className="border-border/40 transition-colors duration-150 ease-out hover:bg-secondary/40"
+                  >
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-primary/15 to-teal/15 text-xs font-semibold text-primary">
+                          {getInitials(user.name)}
+                        </div>
+                        <span className="font-medium">{user.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{user.email}</TableCell>
+                    <TableCell>
+                      <span
+                        className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium capitalize ${roleStyles[roleKey] ?? 'bg-muted/60 text-muted-foreground'}`}
                       >
-                        <PencilIcon className="size-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => handleDelete(user.id)}
-                        disabled={deletingId === user.id}
-                        title="Delete"
-                      >
-                        <TrashIcon className="size-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
+                        {user.role ?? 'employee'}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="cursor-pointer hover:bg-secondary"
+                          onClick={() => openEdit(user)}
+                          title="Edit"
+                        >
+                          <PencilIcon className="size-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="cursor-pointer text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => handleDelete(user.id)}
+                          disabled={deletingId === user.id}
+                          title="Delete"
+                        >
+                          <TrashIcon className="size-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })
             )}
           </TableBody>
         </Table>
-      </div>
+      </section>
 
       {/* Create / Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -253,9 +340,11 @@ export function UsersTable() {
             </div>
           </div>
           <DialogFooter>
-            <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+            <DialogClose render={<Button variant="outline" className="cursor-pointer" />}>
+              Cancel
+            </DialogClose>
             <Button
-              className="bg-forest hover:bg-forest/90 text-cream"
+              className="cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-transform duration-150 ease-out"
               onClick={handleSave}
               disabled={saving || !editing.name.trim() || !editing.email.trim()}
             >

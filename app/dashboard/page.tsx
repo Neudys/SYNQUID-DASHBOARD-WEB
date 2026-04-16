@@ -1,3 +1,4 @@
+import { LayoutDashboardIcon } from 'lucide-react'
 import { SiteHeader } from '@/components/site-header'
 import { DashboardStats } from '@/components/dashboard-stats'
 import { RecentAttendance } from '@/components/recent-attendance'
@@ -30,9 +31,30 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <SiteHeader title="Dashboard" />
-      <div className="flex flex-col gap-6 p-4 md:p-6">
+      <SiteHeader
+        title="Dashboard"
+        description="Overview of live activity and system health"
+        icon={<LayoutDashboardIcon className="size-4" />}
+      />
+      <div className="flex flex-col gap-6 p-4 md:p-6 lg:p-8">
+        {/* Welcome / overview strip */}
+        <section className="relative overflow-hidden rounded-xl border border-border/60 bg-linear-to-br from-primary/5 via-card/60 to-teal/8 p-5 md:p-6 backdrop-blur-sm">
+          <div className="absolute -right-10 -top-10 size-40 rounded-full bg-teal/10 blur-3xl" />
+          <div className="relative">
+            <p className="text-xs font-medium uppercase tracking-widest text-teal">Live overview</p>
+            <h2 className="mt-1 text-xl md:text-2xl font-semibold text-foreground">
+              Welcome back, let&apos;s see what&apos;s happening.
+            </h2>
+            <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+              Monitor readers, attendance activity, and team access in real time.
+            </p>
+          </div>
+        </section>
+
+        {/* KPIs */}
         <DashboardStats summary={summary} />
+
+        {/* Recent attendance */}
         <RecentAttendance records={recentAttendance} />
       </div>
     </div>

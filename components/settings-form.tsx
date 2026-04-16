@@ -1,14 +1,16 @@
 'use client'
 
-import { useState } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useRef, useState } from 'react'
+import gsap from 'gsap'
+import { useGSAP } from '@gsap/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Separator } from '@/components/ui/separator'
 import { UserIcon, KeyRoundIcon, CheckIcon } from 'lucide-react'
+import { DURATION, EASE, STAGGER, prefersReducedMotion } from '@/lib/animations'
+
+gsap.registerPlugin(useGSAP)
 
 interface User {
   id: string
@@ -22,6 +24,8 @@ interface SettingsFormProps {
 }
 
 export function SettingsForm({ user }: SettingsFormProps) {
+  const container = useRef<HTMLDivElement>(null)
+
   // Profile state
   const [name, setName] = useState(user?.name ?? '')
   const [email, setEmail] = useState(user?.email ?? '')
@@ -34,6 +38,25 @@ export function SettingsForm({ user }: SettingsFormProps) {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [passwordSaving, setPasswordSaving] = useState(false)
   const [passwordMsg, setPasswordMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  useGSAP(
+    () => {
+      if (prefersReducedMotion()) return
+      gsap.fromTo(
+        '[data-settings-card]',
+        { opacity: 0, y: 14 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: DURATION.entrance,
+          ease: EASE.out,
+          stagger: STAGGER.normal,
+          clearProps: 'opacity,transform',
+        },
+      )
+    },
+    { scope: container },
+  )
 
   async function handleProfileSave(e: React.FormEvent) {
     e.preventDefault()
@@ -95,27 +118,29 @@ export function SettingsForm({ user }: SettingsFormProps) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div ref={container} className="flex flex-col gap-6">
       {/* Profile card */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="flex size-9 items-center justify-center rounded-full bg-forest/10 text-forest">
-              <UserIcon className="size-4" />
-            </div>
-            <div>
-              <CardTitle className="text-base">Profile</CardTitle>
-              <CardDescription className="text-sm">Update your name and email address.</CardDescription>
-            </div>
-            {user?.role && (
-              <Badge variant="secondary" className="ml-auto bg-forest/10 text-forest border-0 capitalize">
-                {user.role}
-              </Badge>
-            )}
+      <section
+        data-settings-card
+        className="overflow-hidden rounded-xl border border-border/60 bg-card/80 backdrop-blur-sm"
+      >
+        <div className="flex items-center gap-3 border-b border-border/50 bg-linear-to-r from-primary/8 via-transparent to-transparent px-5 py-4">
+          <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <UserIcon className="size-4" />
           </div>
-        </CardHeader>
-        <Separator />
-        <CardContent className="pt-6">
+          <div className="min-w-0 flex-1">
+            <h3 className="text-sm font-semibold text-foreground">Profile</h3>
+            <p className="text-xs text-muted-foreground">
+              Update your name and email address.
+            </p>
+          </div>
+          {user?.role && (
+            <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium capitalize text-primary">
+              {user.role}
+            </span>
+          )}
+        </div>
+        <div className="p-5">
           {!user ? (
             <p className="text-sm text-muted-foreground">
               Could not load profile. Make sure the backend is running.
@@ -123,8 +148,14 @@ export function SettingsForm({ user }: SettingsFormProps) {
           ) : (
             <form onSubmit={handleProfileSave} className="flex flex-col gap-4">
               {profileMsg && (
-                <Alert variant={profileMsg.type === 'error' ? 'destructive' : 'default'}
-                  className={profileMsg.type === 'success' ? 'border-forest/30 bg-forest/5 text-forest' : ''}>
+                <Alert
+                  variant={profileMsg.type === 'error' ? 'destructive' : 'default'}
+                  className={
+                    profileMsg.type === 'success'
+                      ? 'border-teal/40 bg-teal/10 text-teal'
+                      : ''
+                  }
+                >
                   <AlertDescription className="flex items-center gap-2">
                     {profileMsg.type === 'success' && <CheckIcon className="size-4" />}
                     {profileMsg.text}
@@ -157,7 +188,7 @@ export function SettingsForm({ user }: SettingsFormProps) {
               <div className="flex justify-end">
                 <Button
                   type="submit"
-                  className="bg-forest hover:bg-forest/90 text-cream"
+                  className="cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-transform duration-150 ease-out"
                   disabled={profileSaving || !name.trim() || !email.trim()}
                 >
                   {profileSaving ? 'Saving…' : 'Save changes'}
@@ -165,28 +196,36 @@ export function SettingsForm({ user }: SettingsFormProps) {
               </div>
             </form>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
       {/* Change password card */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="flex size-9 items-center justify-center rounded-full bg-forest/10 text-forest">
-              <KeyRoundIcon className="size-4" />
-            </div>
-            <div>
-              <CardTitle className="text-base">Change Password</CardTitle>
-              <CardDescription className="text-sm">Choose a strong password of at least 8 characters.</CardDescription>
-            </div>
+      <section
+        data-settings-card
+        className="overflow-hidden rounded-xl border border-border/60 bg-card/80 backdrop-blur-sm"
+      >
+        <div className="flex items-center gap-3 border-b border-border/50 bg-linear-to-r from-teal/8 via-transparent to-transparent px-5 py-4">
+          <div className="flex size-9 items-center justify-center rounded-lg bg-teal/15 text-teal">
+            <KeyRoundIcon className="size-4" />
           </div>
-        </CardHeader>
-        <Separator />
-        <CardContent className="pt-6">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Change Password</h3>
+            <p className="text-xs text-muted-foreground">
+              Choose a strong password of at least 8 characters.
+            </p>
+          </div>
+        </div>
+        <div className="p-5">
           <form onSubmit={handlePasswordChange} className="flex flex-col gap-4">
             {passwordMsg && (
-              <Alert variant={passwordMsg.type === 'error' ? 'destructive' : 'default'}
-                className={passwordMsg.type === 'success' ? 'border-forest/30 bg-forest/5 text-forest' : ''}>
+              <Alert
+                variant={passwordMsg.type === 'error' ? 'destructive' : 'default'}
+                className={
+                  passwordMsg.type === 'success'
+                    ? 'border-teal/40 bg-teal/10 text-teal'
+                    : ''
+                }
+              >
                 <AlertDescription className="flex items-center gap-2">
                   {passwordMsg.type === 'success' && <CheckIcon className="size-4" />}
                   {passwordMsg.text}
@@ -232,15 +271,15 @@ export function SettingsForm({ user }: SettingsFormProps) {
             <div className="flex justify-end">
               <Button
                 type="submit"
-                className="bg-forest hover:bg-forest/90 text-cream"
+                className="cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-transform duration-150 ease-out"
                 disabled={passwordSaving || !currentPassword || !newPassword || !confirmPassword}
               >
                 {passwordSaving ? 'Updating…' : 'Update password'}
               </Button>
             </div>
           </form>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     </div>
   )
 }

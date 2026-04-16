@@ -1,3 +1,4 @@
+import { Settings2Icon } from 'lucide-react'
 import { SiteHeader } from '@/components/site-header'
 import { SettingsForm } from '@/components/settings-form'
 import { backendFetch } from '@/lib/api'
@@ -18,8 +19,12 @@ export default async function SettingsPage() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <SiteHeader title="Settings" />
-      <div className="p-4 md:p-6">
+      <SiteHeader
+        title="Settings"
+        description="Update your profile and change your password"
+        icon={<Settings2Icon className="size-4" />}
+      />
+      <div className="p-4 md:p-6 lg:p-8">
         <div className="mx-auto max-w-2xl">
           <SettingsForm user={user} />
         </div>

@@ -1,6 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import gsap from 'gsap'
+import { useGSAP } from '@gsap/react'
 import {
   Table,
   TableBody,
@@ -12,7 +14,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Dialog,
@@ -27,8 +28,12 @@ import {
   PencilIcon,
   TrashIcon,
   RefreshCwIcon,
+  CpuIcon,
 } from 'lucide-react'
 import { API } from '@/lib/endpoints'
+import { DURATION, EASE, STAGGER, prefersReducedMotion } from '@/lib/animations'
+
+gsap.registerPlugin(useGSAP)
 
 interface Reader {
   id: string
@@ -41,6 +46,7 @@ interface Reader {
 const EMPTY: Reader = { id: '', name: '', location: '', isActive: true }
 
 export function ReadersTable() {
+  const container = useRef<HTMLDivElement>(null)
   const [readers, setReaders] = useState<Reader[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -61,7 +67,46 @@ export function ReadersTable() {
     }
   }, [])
 
-  useEffect(() => { fetchReaders() }, [fetchReaders])
+  useEffect(() => {
+    fetchReaders()
+  }, [fetchReaders])
+
+  useGSAP(
+    () => {
+      if (prefersReducedMotion()) return
+      gsap.fromTo(
+        '[data-surface]',
+        { opacity: 0, y: 12 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: DURATION.entrance,
+          ease: EASE.out,
+          clearProps: 'opacity,transform',
+        },
+      )
+    },
+    { scope: container },
+  )
+
+  useGSAP(
+    () => {
+      if (prefersReducedMotion() || loading) return
+      gsap.fromTo(
+        '[data-row]',
+        { opacity: 0, y: 6 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: DURATION.standard,
+          ease: EASE.out,
+          stagger: STAGGER.tight,
+          clearProps: 'opacity,transform',
+        },
+      )
+    },
+    { scope: container, dependencies: [loading, readers] },
+  )
 
   function openCreate() {
     setEditing(EMPTY)
@@ -82,7 +127,11 @@ export function ReadersTable() {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: editing.name, location: editing.location, isActive: editing.isActive }),
+        body: JSON.stringify({
+          name: editing.name,
+          location: editing.location,
+          isActive: editing.isActive,
+        }),
       })
       if (res.ok) {
         setDialogOpen(false)
@@ -111,7 +160,10 @@ export function ReadersTable() {
       const res = await fetch(`${API.readers}/${id}/regenerate-key`, { method: 'POST' })
       if (res.ok) {
         const data = await res.json()
-        setNewKey({ readerId: id, key: data.apiKey ?? data.key ?? '(check server response)' })
+        setNewKey({
+          readerId: id,
+          key: data.apiKey ?? data.key ?? '(check server response)',
+        })
       }
     } finally {
       setRegeneratingId(null)
@@ -119,62 +171,91 @@ export function ReadersTable() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          {readers.length} reader{readers.length !== 1 ? 's' : ''} configured
-        </p>
+    <div ref={container} className="flex flex-col gap-5">
+      {/* Toolbar surface */}
+      <section
+        data-surface
+        className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-linear-to-r from-secondary/40 via-card/70 to-teal/5 px-5 py-4 backdrop-blur-sm"
+      >
+        <div className="flex items-center gap-3">
+          <div className="flex size-9 items-center justify-center rounded-lg bg-teal/15 text-teal">
+            <CpuIcon className="size-4" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground">
+              {readers.length} reader{readers.length !== 1 ? 's' : ''} configured
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Manage devices and their API keys.
+            </p>
+          </div>
+        </div>
         <Button
-          className="bg-forest hover:bg-forest/90 text-cream gap-2"
+          className="cursor-pointer gap-2 bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-transform duration-150 ease-out"
           onClick={openCreate}
         >
           <PlusIcon className="size-4" />
           New Reader
         </Button>
-      </div>
+      </section>
 
-      <div className="rounded-lg border border-sage overflow-hidden">
+      {/* Table surface */}
+      <section
+        data-surface
+        className="overflow-hidden rounded-xl border border-border/60 bg-card/80 backdrop-blur-sm"
+      >
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/40">
-              <TableHead>Name</TableHead>
-              <TableHead>Location</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+            <TableRow className="hover:bg-transparent border-border/40">
+              <TableHead className="text-xs uppercase tracking-wider">Name</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider">Location</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider">Status</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider">Created</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               Array.from({ length: 4 }).map((_, i) => (
-                <TableRow key={i}>
+                <TableRow key={i} className="border-border/40">
                   {Array.from({ length: 5 }).map((__, j) => (
-                    <TableCell key={j}><Skeleton className="h-4 w-full" /></TableCell>
+                    <TableCell key={j}>
+                      <Skeleton className="h-4 w-full" />
+                    </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : readers.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="py-10 text-center text-muted-foreground text-sm">
-                  No readers found. Add one to get started.
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={5} className="py-12 text-center text-sm text-muted-foreground">
+                  No readers yet. Add one to get started.
                 </TableCell>
               </TableRow>
             ) : (
               readers.map((reader) => (
-                <TableRow key={reader.id}>
+                <TableRow
+                  key={reader.id}
+                  data-row
+                  className="border-border/40 transition-colors duration-150 ease-out hover:bg-secondary/40"
+                >
                   <TableCell className="font-medium">{reader.name}</TableCell>
-                  <TableCell className="text-muted-foreground">{reader.location ?? '—'}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={reader.isActive ? 'default' : 'secondary'}
-                      className={reader.isActive
-                        ? 'bg-forest/15 text-forest border-0'
-                        : 'bg-sage/30 text-muted-foreground border-0'}
-                    >
-                      {reader.isActive ? 'Active' : 'Inactive'}
-                    </Badge>
+                  <TableCell className="text-muted-foreground">
+                    {reader.location ?? '—'}
                   </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
+                  <TableCell>
+                    {reader.isActive ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-md bg-teal/15 px-2 py-0.5 text-xs font-medium text-teal">
+                        <span className="size-1.5 rounded-full bg-teal" />
+                        Active
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 rounded-md bg-muted/60 px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                        <span className="size-1.5 rounded-full bg-muted-foreground/50" />
+                        Inactive
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground tabular-nums">
                     {reader.createdAt ? new Date(reader.createdAt).toLocaleDateString() : '—'}
                   </TableCell>
                   <TableCell className="text-right">
@@ -182,6 +263,7 @@ export function ReadersTable() {
                       <Button
                         variant="ghost"
                         size="sm"
+                        className="cursor-pointer hover:bg-secondary"
                         onClick={() => openEdit(reader)}
                         title="Edit"
                       >
@@ -190,6 +272,7 @@ export function ReadersTable() {
                       <Button
                         variant="ghost"
                         size="sm"
+                        className="cursor-pointer hover:bg-secondary"
                         onClick={() => handleRegenerateKey(reader.id)}
                         disabled={regeneratingId === reader.id}
                         title="Regenerate API key"
@@ -199,7 +282,7 @@ export function ReadersTable() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-destructive hover:text-destructive"
+                        className="cursor-pointer text-destructive hover:text-destructive hover:bg-destructive/10"
                         onClick={() => handleDelete(reader.id)}
                         disabled={deletingId === reader.id}
                         title="Delete"
@@ -213,7 +296,7 @@ export function ReadersTable() {
             )}
           </TableBody>
         </Table>
-      </div>
+      </section>
 
       {/* Create / Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -246,15 +329,19 @@ export function ReadersTable() {
                 type="checkbox"
                 checked={editing.isActive ?? true}
                 onChange={(e) => setEditing({ ...editing, isActive: e.target.checked })}
-                className="accent-forest"
+                className="accent-teal cursor-pointer"
               />
-              <Label htmlFor="reader-active">Active</Label>
+              <Label htmlFor="reader-active" className="cursor-pointer">
+                Active
+              </Label>
             </div>
           </div>
           <DialogFooter>
-            <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+            <DialogClose render={<Button variant="outline" className="cursor-pointer" />}>
+              Cancel
+            </DialogClose>
             <Button
-              className="bg-forest hover:bg-forest/90 text-cream"
+              className="cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-transform duration-150 ease-out"
               onClick={handleSave}
               disabled={saving || !editing.name.trim()}
             >
@@ -273,18 +360,18 @@ export function ReadersTable() {
           <p className="text-sm text-muted-foreground">
             Copy this key now — it will not be shown again.
           </p>
-          <code className="block rounded bg-muted p-3 text-sm font-mono break-all">
+          <code className="block rounded-md border border-border/60 bg-secondary/50 p-3 text-sm font-mono break-all">
             {newKey?.key}
           </code>
           <DialogFooter>
             <Button
-              className="bg-forest hover:bg-forest/90 text-cream"
+              className="cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-transform duration-150 ease-out"
               onClick={() => {
                 navigator.clipboard.writeText(newKey?.key ?? '')
                 setNewKey(null)
               }}
             >
-              Copy & Close
+              Copy &amp; Close
             </Button>
           </DialogFooter>
         </DialogContent>

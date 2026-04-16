@@ -7,7 +7,7 @@ import { setAuthCookie } from '@/lib/auth'
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-
+    console.log(BACKEND_BASE_URL, BACKEND.auth.login)
     const res = await fetch(`${BACKEND_BASE_URL}${BACKEND.auth.login}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
