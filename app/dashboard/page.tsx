@@ -5,30 +5,84 @@ import { RecentAttendance } from '@/components/recent-attendance'
 import { backendFetch } from '@/lib/api'
 import { BACKEND } from '@/lib/endpoints'
 
-async function getSummary() {
+async function getActiveReaders() {
   try {
-    const res = await backendFetch(BACKEND.dashboard.summary)
+    const res = await backendFetch(BACKEND.devices.list)
     if (!res.ok) return null
-    return res.json()
+    const data = await res.json()
+    return data?.length ?? null
   } catch {
     return null
   }
 }
 
-async function getRecentAttendance() {
+async function getAttendanceToday() {
   try {
-    const res = await backendFetch(`${BACKEND.attendance.list}?pageSize=5&page=1`)
-    if (!res.ok) return []
+    const now = new Date()
+    const today = now.toISOString().slice(0, 19)  
+
+    const yesterday = new Date(now)
+    yesterday.setDate(yesterday.getDate() - 1)
+    const yesterdayStr = yesterday.toISOString().slice(0, 19)
+
+    const res = await backendFetch(`${BACKEND.attendance.stats}?from=${yesterdayStr}&to=${today}`)
+    if (!res.ok) return null
     const data = await res.json()
-    return data.items ?? data ?? []
+    return data.totalRecords ?? null
   } catch {
-    return []
+    return null
   }
 }
 
-export default async function DashboardPage() {
-  const [summary, recentAttendance] = await Promise.all([getSummary(), getRecentAttendance()])
+async function getAllAttendance() {
+  try {
+    const res = await backendFetch(BACKEND.attendance.all)
+    if (!res.ok) return null
+    const data = await res.json()
 
+    for (const record of data) 
+    {
+      const resU = await backendFetch(BACKEND.devices.detail(record.deviceId))
+      const resD = await backendFetch(BACKEND.users.detail(record.userId))
+      if (resU.ok) {
+        const readerData = await resU.json()
+        record.readerName = readerData.deviceInfo.name
+      } 
+      if (resD.ok) {
+        const userData = await resD.json()
+        record.userName = userData.userData.firstName
+      }
+    }
+    return data ?? null
+  } catch {
+    return null
+  }
+}
+
+interface AttendanceRecord {
+  id: string
+  employeeName?: string
+  userName?: string
+  readerName?: string
+  timestamp?: string
+  createdAt?: string
+}
+
+
+async function getTotalUsers() {
+  try {
+    const res = await backendFetch(BACKEND.users.list)
+    if (!res.ok) return null
+    const data = await res.json()
+    return data?.users.length ?? null
+  } catch {
+    return null
+  }
+}
+
+
+export default async function DashboardPage() {
+  const [ActiveReaders,totalUsers, allAttendance, attendanceToday] = await Promise.all([getActiveReaders(),getTotalUsers(), getAllAttendance(), getAttendanceToday()])
   return (
     <div className="flex flex-1 flex-col">
       <SiteHeader
@@ -52,10 +106,15 @@ export default async function DashboardPage() {
         </section>
 
         {/* KPIs */}
-        <DashboardStats summary={summary} />
+        <DashboardStats 
+          activeReaders={ActiveReaders} 
+          attendanceToday={attendanceToday}
+          totalUsers={totalUsers}
+          lastAttendanceAt={allAttendance[allAttendance.length - 1]?.timestampLocal ?? null} 
+          />
 
         {/* Recent attendance */}
-        <RecentAttendance records={recentAttendance} />
+        <RecentAttendance records={allAttendance ?? []} />
       </div>
     </div>
   )

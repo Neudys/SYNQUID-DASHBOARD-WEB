@@ -29,6 +29,7 @@ export const BACKEND = {
   },
   attendance: {
     /** Primary paged history — used as the list endpoint */
+    all:        '/api/Attendance/All',
     list:       '/api/Attendance/history',
     history:    '/api/Attendance/history',
     myHistory:  '/api/Attendance/myHistory',

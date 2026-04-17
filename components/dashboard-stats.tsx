@@ -9,15 +9,12 @@ import { DURATION, EASE, STAGGER, prefersReducedMotion } from '@/lib/animations'
 
 gsap.registerPlugin(useGSAP)
 
-interface Summary {
+
+interface DashboardStatsProps {
   activeReaders?: number
   attendanceToday?: number
   totalUsers?: number
   lastAttendanceAt?: string | null
-}
-
-interface DashboardStatsProps {
-  summary: Summary | null
 }
 
 type Accent = 'forest' | 'teal' | 'sage' | 'moss'
@@ -53,7 +50,7 @@ const accentMap: Record<Accent, { bg: string; text: string; ring: string }> = {
   },
 }
 
-export function DashboardStats({ summary }: DashboardStatsProps) {
+export function DashboardStats({ activeReaders, attendanceToday, lastAttendanceAt, totalUsers }: DashboardStatsProps) {
   const container = useRef<HTMLDivElement>(null)
 
   useGSAP(
@@ -78,36 +75,36 @@ export function DashboardStats({ summary }: DashboardStatsProps) {
   const stats: Stat[] = [
     {
       label: 'Active Readers',
-      value: summary?.activeReaders ?? '—',
+      value: activeReaders ?? '—',
       icon: CpuIcon,
       description: 'Readers currently online',
       accent: 'teal',
     },
     {
       label: 'Attendance Today',
-      value: summary?.attendanceToday ?? '—',
+      value: attendanceToday ?? '—',
       icon: ClockIcon,
       description: 'Records logged today',
       accent: 'forest',
     },
     {
       label: 'Total Users',
-      value: summary?.totalUsers ?? '—',
+      value: totalUsers ?? '—',
       icon: UsersIcon,
       description: 'Registered employees',
       accent: 'sage',
     },
     {
       label: 'Last Record',
-      value: summary?.lastAttendanceAt
-        ? new Date(summary.lastAttendanceAt).toLocaleTimeString([], {
+      value: lastAttendanceAt
+        ? new Date(lastAttendanceAt).toLocaleTimeString([], {
             hour: '2-digit',
             minute: '2-digit',
           })
         : '—',
       icon: ActivityIcon,
-      description: summary?.lastAttendanceAt
-        ? new Date(summary.lastAttendanceAt).toLocaleDateString()
+      description: lastAttendanceAt
+        ? new Date(lastAttendanceAt).toLocaleDateString()
         : 'No records yet',
       accent: 'moss',
     },
