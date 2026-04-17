@@ -23,6 +23,7 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
   PlusIcon,
   PencilIcon,
@@ -55,6 +56,8 @@ export function ReadersTable() {
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [newKey, setNewKey] = useState<{ readerId: string; key: string } | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<Reader | null>(null)
+  const [confirmRegenerate, setConfirmRegenerate] = useState<Reader | null>(null)
 
   const fetchReaders = useCallback(async () => {
     setLoading(true)
@@ -143,18 +146,17 @@ export function ReadersTable() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this reader? This cannot be undone.')) return
     setDeletingId(id)
     try {
       await fetch(`${API.readers}/${id}`, { method: 'DELETE' })
       await fetchReaders()
     } finally {
       setDeletingId(null)
+      setConfirmDelete(null)
     }
   }
 
   async function handleRegenerateKey(id: string) {
-    if (!confirm('Regenerate API key? The old key will stop working immediately.')) return
     setRegeneratingId(id)
     try {
       const res = await fetch(`${API.readers}/${id}/regenerate-key`, { method: 'POST' })
@@ -167,6 +169,7 @@ export function ReadersTable() {
       }
     } finally {
       setRegeneratingId(null)
+      setConfirmRegenerate(null)
     }
   }
 
@@ -273,7 +276,7 @@ export function ReadersTable() {
                         variant="ghost"
                         size="sm"
                         className="cursor-pointer hover:bg-secondary"
-                        onClick={() => handleRegenerateKey(reader.id)}
+                        onClick={() => setConfirmRegenerate(reader)}
                         disabled={regeneratingId === reader.id}
                         title="Regenerate API key"
                       >
@@ -283,7 +286,7 @@ export function ReadersTable() {
                         variant="ghost"
                         size="sm"
                         className="cursor-pointer text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => handleDelete(reader.id)}
+                        onClick={() => setConfirmDelete(reader)}
                         disabled={deletingId === reader.id}
                         title="Delete"
                       >
@@ -376,6 +379,34 @@ export function ReadersTable() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete reader confirmation */}
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onOpenChange={(open) => !open && setConfirmDelete(null)}
+        title="Delete reader"
+        description={`You are about to permanently delete the reader "${confirmDelete?.name ?? ''}". This action cannot be undone and the device will lose access immediately.`}
+        confirmLabel="Delete reader"
+        variant="destructive"
+        loading={deletingId === confirmDelete?.id}
+        onConfirm={async () => {
+          if (confirmDelete) await handleDelete(confirmDelete.id)
+        }}
+      />
+
+      {/* Regenerate API key confirmation */}
+      <ConfirmDialog
+        open={!!confirmRegenerate}
+        onOpenChange={(open) => !open && setConfirmRegenerate(null)}
+        title="Regenerate API key"
+        description={`You are about to regenerate the API key for "${confirmRegenerate?.name ?? ''}". The current key will stop working immediately and any device using it will lose connectivity until updated.`}
+        confirmLabel="Regenerate key"
+        variant="destructive"
+        loading={regeneratingId === confirmRegenerate?.id}
+        onConfirm={async () => {
+          if (confirmRegenerate) await handleRegenerateKey(confirmRegenerate.id)
+        }}
+      />
     </div>
   )
 }

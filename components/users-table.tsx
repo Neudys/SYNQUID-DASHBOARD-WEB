@@ -30,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { PlusIcon, PencilIcon, TrashIcon, UsersIcon } from 'lucide-react'
 import { API } from '@/lib/endpoints'
 import { DURATION, EASE, STAGGER, prefersReducedMotion } from '@/lib/animations'
@@ -68,6 +69,7 @@ export function UsersTable() {
   const [editing, setEditing] = useState<User & { password?: string }>(EMPTY)
   const [saving, setSaving] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<User | null>(null)
 
   const fetchUsers = useCallback(async () => {
     setLoading(true)
@@ -158,13 +160,13 @@ export function UsersTable() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this user? This cannot be undone.')) return
     setDeletingId(id)
     try {
       await fetch(`${API.users}/${id}`, { method: 'DELETE' })
       await fetchUsers()
     } finally {
       setDeletingId(null)
+      setConfirmDelete(null)
     }
   }
 
@@ -268,7 +270,7 @@ export function UsersTable() {
                           variant="ghost"
                           size="sm"
                           className="cursor-pointer text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => handleDelete(user.id)}
+                          onClick={() => setConfirmDelete(user)}
                           disabled={deletingId === user.id}
                           title="Delete"
                         >
@@ -353,6 +355,20 @@ export function UsersTable() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete user confirmation */}
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onOpenChange={(open) => !open && setConfirmDelete(null)}
+        title="Delete user"
+        description={`You are about to permanently delete the user "${confirmDelete?.name ?? ''}" (${confirmDelete?.email ?? ''}). This action cannot be undone and the user will lose access immediately.`}
+        confirmLabel="Delete user"
+        variant="destructive"
+        loading={deletingId === confirmDelete?.id}
+        onConfirm={async () => {
+          if (confirmDelete) await handleDelete(confirmDelete.id)
+        }}
+      />
     </div>
   )
 }

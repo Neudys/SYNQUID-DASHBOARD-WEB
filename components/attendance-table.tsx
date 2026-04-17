@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
   TrashIcon,
   ChevronLeftIcon,
@@ -69,6 +70,7 @@ export function AttendanceTable() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<AttendanceRecord | null>(null)
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
@@ -150,13 +152,13 @@ export function AttendanceTable() {
   )
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this attendance record?')) return
     setDeletingId(id)
     try {
       await fetch(`${API.attendance}/${id}`, { method: 'DELETE' })
       await fetchData()
     } finally {
       setDeletingId(null)
+      setConfirmDelete(null)
     }
   }
 
@@ -308,7 +310,7 @@ export function AttendanceTable() {
                       variant="ghost"
                       size="sm"
                       className="cursor-pointer text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => handleDelete(record.id)}
+                      onClick={() => setConfirmDelete(record)}
                       disabled={deletingId === record.id}
                     >
                       <TrashIcon className="size-4" />
@@ -352,6 +354,20 @@ export function AttendanceTable() {
           </div>
         </div>
       </section>
+
+      {/* Delete attendance confirmation */}
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onOpenChange={(open) => !open && setConfirmDelete(null)}
+        title="Delete attendance record"
+        description={`You are about to permanently delete the attendance record for "${confirmDelete?.employeeName ?? confirmDelete?.userName ?? 'this employee'}". This action cannot be undone.`}
+        confirmLabel="Delete record"
+        variant="destructive"
+        loading={deletingId === confirmDelete?.id}
+        onConfirm={async () => {
+          if (confirmDelete) await handleDelete(confirmDelete.id)
+        }}
+      />
     </div>
   )
 }
