@@ -101,6 +101,7 @@ export const API = {
     me:     '/api/auth/me',
   },
   attendance: '/api/attendance',
+  attendanceAll: '/api/attendance/all',
   readers:    '/api/readers',
   users:      '/api/users',
   dashboard:  '/api/dashboard/summary',

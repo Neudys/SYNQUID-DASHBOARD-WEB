@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import gsap from 'gsap'
 import { useGSAP } from '@gsap/react'
 import {
@@ -37,19 +37,16 @@ gsap.registerPlugin(useGSAP)
 
 interface AttendanceRecord {
   id: string
+  userId?: string
+  deviceId?: string
   employeeName?: string
   userName?: string
   readerName?: string
   readerId?: string
   timestamp?: string
+  timestampUtc?: string
+  timestampLocal?: string
   createdAt?: string
-}
-
-interface PagedResult {
-  items: AttendanceRecord[]
-  totalCount: number
-  page: number
-  pageSize: number
 }
 
 interface Reader {
@@ -61,8 +58,7 @@ const PAGE_SIZE = 10
 
 export function AttendanceTable() {
   const container = useRef<HTMLDivElement>(null)
-  const [records, setRecords] = useState<AttendanceRecord[]>([])
-  const [total, setTotal] = useState(0)
+  const [allRecords, setAllRecords] = useState<AttendanceRecord[]>([])
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [readers, setReaders] = useState<Reader[]>([])
@@ -72,37 +68,90 @@ export function AttendanceTable() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<AttendanceRecord | null>(null)
 
+  const selectedReader = useMemo(
+    () => readers.find((r) => r.id === readerId),
+    [readers, readerId],
+  )
+
+  const filteredRecords = useMemo(() => {
+    const fromTime = dateFrom ? new Date(`${dateFrom}T00:00:00`).getTime() : null
+    const toTime = dateTo ? new Date(`${dateTo}T23:59:59`).getTime() : null
+
+    return allRecords.filter((r) => {
+      if (readerId !== 'all') {
+        const matchesId = r.readerId === readerId
+        const matchesName = selectedReader ? r.readerName === selectedReader.name : false
+        if (!matchesId && !matchesName) return false
+      }
+
+      const ts = r.timestampUtc ?? r.timestampLocal ?? r.timestamp ?? r.createdAt
+      if (!ts) return !fromTime && !toTime
+
+      const t = new Date(ts).getTime()
+      if (fromTime !== null && t < fromTime) return false
+      if (toTime !== null && t > toTime) return false
+      return true
+    })
+  }, [allRecords, readerId, selectedReader, dateFrom, dateTo])
+
+  const total = filteredRecords.length
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const records = useMemo(
+    () => filteredRecords.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filteredRecords, page],
+  )
 
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams({
-        page: String(page),
-        pageSize: String(PAGE_SIZE),
-      })
-      if (readerId && readerId !== 'all') params.set('readerId', readerId)
-      if (dateFrom) params.set('dateFrom', dateFrom)
-      if (dateTo) params.set('dateTo', dateTo)
-
-      const res = await fetch(`${API.attendance}?${params.toString()}`)
+      const res = await fetch(API.attendanceAll)
       if (!res.ok) return
-      const data = (await res.json()) as PagedResult | AttendanceRecord[]
-      if (Array.isArray(data)) {
-        setRecords(data)
-        setTotal(data.length)
-      } else {
-        setRecords(data.items ?? [])
-        setTotal(data.totalCount ?? 0)
-      }
+      const data = await res.json()
+
+      await Promise.all(
+        data.map(async (record: AttendanceRecord) => {
+          const [resU, resD] = await Promise.all([
+            fetch(`${API.readers}/${record.deviceId}`),
+            fetch(`${API.users}/${record.userId}`),
+          ])
+          if (resU.ok) {
+            const readerData = await resU.json()
+            const d = readerData.deviceInfo ?? readerData
+            record.readerName = d?.name || d?.deviceName || record.readerName || ''
+          }
+          if (resD.ok) {
+            const userData = await resD.json()
+            const u = userData.userData ?? userData
+            record.userName =
+              u?.firstName ||
+              u?.name ||
+              u?.fullName ||
+              u?.displayName ||
+              u?.userName ||
+              u?.email ||
+              record.userName ||
+              ''
+          }
+        }),
+      )
+
+      console.log('Fetched attendance records:', data)
+      const list: AttendanceRecord[] = Array.isArray(data)
+        ? data
+        : (data.items ?? [])
+      setAllRecords(list)
     } finally {
       setLoading(false)
     }
-  }, [page, readerId, dateFrom, dateTo])
+  }, [])
 
   useEffect(() => {
     fetchData()
   }, [fetchData])
+
+  useEffect(() => {
+    if (page > totalPages) setPage(1)
+  }, [page, totalPages])
 
   useEffect(() => {
     fetch(API.readers)
@@ -165,7 +214,6 @@ export function AttendanceTable() {
   function handleFilter(e: React.FormEvent) {
     e.preventDefault()
     setPage(1)
-    fetchData()
   }
 
   return (
@@ -206,7 +254,11 @@ export function AttendanceTable() {
             <Label className="text-xs text-muted-foreground">Reader</Label>
             <Select value={readerId} onValueChange={(v) => setReaderId(v ?? 'all')}>
               <SelectTrigger className="w-48 bg-background/80">
-                <SelectValue placeholder="All readers" />
+                <SelectValue placeholder="All readers">
+                  {readerId === 'all'
+                    ? 'All readers'
+                    : selectedReader?.name ?? 'All readers'}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All readers</SelectItem>
@@ -293,17 +345,22 @@ export function AttendanceTable() {
                   className="border-border/40 transition-colors duration-150 ease-out hover:bg-secondary/40"
                 >
                   <TableCell className="font-medium">
-                    {record.employeeName ?? record.userName ?? '—'}
+                    {record.employeeName || record.userName || '—'}
                   </TableCell>
                   <TableCell>
                     <span className="inline-flex items-center rounded-md bg-sage/30 px-2 py-0.5 text-xs font-medium text-forest">
-                      {record.readerName ?? '—'}
+                      {record.readerName || '—'}
                     </span>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground tabular-nums">
-                    {record.timestamp ?? record.createdAt
-                      ? new Date(record.timestamp ?? record.createdAt!).toLocaleString()
-                      : '—'}
+                    {(() => {
+                      const ts =
+                        record.timestampUtc ??
+                        record.timestampLocal ??
+                        record.timestamp ??
+                        record.createdAt
+                      return ts ? new Date(ts).toLocaleString() : '—'
+                    })()}
                   </TableCell>
                   <TableCell className="text-right">
                     <Button

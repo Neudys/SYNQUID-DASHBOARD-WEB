@@ -34,10 +34,12 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { PlusIcon, PencilIcon, TrashIcon, UsersIcon } from 'lucide-react'
 import { API } from '@/lib/endpoints'
 import { DURATION, EASE, STAGGER, prefersReducedMotion } from '@/lib/animations'
+import { number } from 'zod'
 
 gsap.registerPlugin(useGSAP)
 
 interface User {
+  firstName?: string
   id: string
   name: string
   email: string
@@ -50,6 +52,18 @@ const roleStyles: Record<string, string> = {
   admin: 'bg-primary/12 text-primary',
   manager: 'bg-teal/15 text-teal',
   employee: 'bg-sage/40 text-forest',
+}
+
+function normalizeRole(role: number) {
+  const key = role ?? 3
+  let roleName: string;
+
+  if (key === 0) roleName = 'SuperAdmin'
+  else if (key === 1) roleName = 'Admin'
+  else if (key === 2) roleName = 'Proffesor'
+  else roleName = 'Student'
+  
+  return roleName
 }
 
 function getInitials(name: string) {
@@ -75,8 +89,10 @@ export function UsersTable() {
     setLoading(true)
     try {
       const res = await fetch(API.users)
+      if (!res.ok) return;
       const data = await res.json()
-      setUsers(Array.isArray(data) ? data : data.items ?? [])
+      console.log('Fetch users response:', data)
+      setUsers(Array.isArray(data) ? data : data.users ?? [])
     } finally {
       setLoading(false)
     }
@@ -232,7 +248,7 @@ export function UsersTable() {
               </TableRow>
             ) : (
               users.map((user) => {
-                const roleKey = user.role?.toLowerCase() ?? 'employee'
+                const roleKey = user.role ?? 'employee'
                 return (
                   <TableRow
                     key={user.id}
@@ -242,7 +258,7 @@ export function UsersTable() {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-primary/15 to-teal/15 text-xs font-semibold text-primary">
-                          {getInitials(user.name)}
+                          {getInitials(user.firstName ?? "-")}
                         </div>
                         <span className="font-medium">{user.name}</span>
                       </div>
@@ -252,7 +268,7 @@ export function UsersTable() {
                       <span
                         className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium capitalize ${roleStyles[roleKey] ?? 'bg-muted/60 text-muted-foreground'}`}
                       >
-                        {user.role ?? 'employee'}
+                        { normalizeRole(parseInt(user.role ?? "3")) ?? 'employee'}
                       </span>
                     </TableCell>
                     <TableCell className="text-right">
@@ -348,7 +364,7 @@ export function UsersTable() {
             <Button
               className="cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-transform duration-150 ease-out"
               onClick={handleSave}
-              disabled={saving || !editing.name.trim() || !editing.email.trim()}
+              disabled={saving || !editing.firstName?.trim() || !editing.email.trim()}
             >
               {saving ? 'Saving…' : editing.id ? 'Update' : 'Create'}
             </Button>
