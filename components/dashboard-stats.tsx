@@ -39,8 +39,8 @@ const accentMap: Record<Accent, { bg: string; text: string; ring: string }> = {
     ring: 'group-hover:ring-teal/40',
   },
   sage: {
-    bg: 'bg-sage/40',
-    text: 'text-forest',
+    bg: 'bg-sage/40 dark:bg-sage/15',
+    text: 'text-forest dark:text-sage',
     ring: 'group-hover:ring-sage/60',
   },
   moss: {

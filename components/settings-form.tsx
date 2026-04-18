@@ -209,7 +209,7 @@ export function SettingsForm({ user, institutionName }: SettingsFormProps) {
         className="overflow-hidden rounded-xl border border-border/60 bg-card/80 backdrop-blur-sm"
       >
         <div className="flex items-center gap-3 border-b border-border/50 bg-linear-to-r from-sage/15 via-transparent to-transparent px-5 py-4">
-          <div className="flex size-9 items-center justify-center rounded-lg bg-sage/30 text-forest">
+          <div className="flex size-9 items-center justify-center rounded-lg bg-sage/30 text-forest dark:bg-sage/15 dark:text-sage">
             <PaletteIcon className="size-4" />
           </div>
           <div>

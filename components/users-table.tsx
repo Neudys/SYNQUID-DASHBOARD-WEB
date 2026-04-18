@@ -51,7 +51,7 @@ const EMPTY: User = { id: '', name: '', email: '', role: 'employee' }
 const roleStyles: Record<string, string> = {
   admin: 'bg-primary/12 text-primary',
   manager: 'bg-teal/15 text-teal',
-  employee: 'bg-sage/40 text-forest',
+  employee: 'bg-sage/40 text-forest dark:bg-sage/15 dark:text-sage',
 }
 
 function normalizeRole(role: number) {
