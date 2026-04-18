@@ -8,7 +8,20 @@ async function getCurrentUser() {
   try {
     const res = await backendFetch(BACKEND.auth.me)
     if (!res.ok) return null
-    return res.json()
+    const data = await res.json()
+    return data?.userData ?? data ?? null
+  } catch {
+    return null
+  }
+}
+
+async function getInstitutionName(id?: string | null): Promise<string | null> {
+  if (!id) return null
+  try {
+    const res = await backendFetch(BACKEND.institutions.detail(id))
+    if (!res.ok) return null
+    const data = await res.json()
+    return data?.name ?? data?.institutionData?.name ?? null
   } catch {
     return null
   }
@@ -16,17 +29,18 @@ async function getCurrentUser() {
 
 export default async function SettingsPage() {
   const user = await getCurrentUser()
+  const institutionName = await getInstitutionName(user?.institutionId ?? user?.InstitutionId)
 
   return (
     <div className="flex flex-1 flex-col">
       <SiteHeader
         title="Settings"
-        description="Update your profile and change your password"
+        description="Manage your profile and preferences"
         icon={<Settings2Icon className="size-4" />}
       />
       <div className="p-4 md:p-6 lg:p-8">
-        <div className="mx-auto max-w-2xl">
-          <SettingsForm user={user} />
+        <div className="mx-auto max-w-3xl">
+          <SettingsForm user={user} institutionName={institutionName} />
         </div>
       </div>
     </div>

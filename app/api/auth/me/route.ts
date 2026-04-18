@@ -7,6 +7,7 @@ import { BACKEND } from '@/lib/endpoints'
 export async function GET() {
   try {
     const res = await backendFetch(BACKEND.auth.me)
+    console.log('Fetch /api/User/me response:', res)
     if (!res.ok) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: res.status })
     }

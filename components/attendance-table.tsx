@@ -348,7 +348,7 @@ export function AttendanceTable() {
                     {record.employeeName || record.userName || '—'}
                   </TableCell>
                   <TableCell>
-                    <span className="inline-flex items-center rounded-md bg-sage/30 px-2 py-0.5 text-xs font-medium text-forest">
+                    <span className="inline-flex items-center rounded-md bg-sage/30 px-2 py-0.5 text-xs font-medium text-forest dark:bg-sage/15 dark:text-sage">
                       {record.readerName || '—'}
                     </span>
                   </TableCell>
