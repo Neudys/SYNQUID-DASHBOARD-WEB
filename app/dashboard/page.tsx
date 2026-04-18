@@ -110,7 +110,7 @@ export default async function DashboardPage() {
           activeReaders={ActiveReaders} 
           attendanceToday={attendanceToday}
           totalUsers={totalUsers}
-          lastAttendanceAt={allAttendance[allAttendance.length - 1]?.timestampLocal ?? null} 
+          lastAttendanceAt={allAttendance?.at(-1)?.timestampLocal ?? null}
           />
 
         {/* Recent attendance */}
