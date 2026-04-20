@@ -20,3 +20,25 @@ export async function DELETE(
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }
+
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    const body = await req.text()
+    const res = await backendFetch(BACKEND.attendance.update(id), {
+      method: 'PUT',
+      body: body || undefined,
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      return NextResponse.json(data, { status: res.status })
+    }
+    return NextResponse.json(data)
+  } catch (err) {
+    console.error('[api/attendance PUT]', err)
+    return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
+  }
+}

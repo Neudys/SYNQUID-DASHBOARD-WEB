@@ -13,7 +13,10 @@ import {
   ShieldCheckIcon,
   LogOutIcon,
   Settings2Icon,
+  CalendarIcon,
+  type LucideIcon,
 } from 'lucide-react'
+import { Role } from '@/lib/roles'
 import {
   Sidebar,
   SidebarContent,
@@ -32,15 +35,31 @@ import { DURATION, EASE, STAGGER, prefersReducedMotion } from '@/lib/animations'
 
 gsap.registerPlugin(useGSAP)
 
-const navItems = [
-  { title: 'Dashboard',  href: '/dashboard',             icon: LayoutDashboardIcon },
-  { title: 'Attendance', href: '/dashboard/attendance',  icon: ClockIcon },
-  { title: 'Readers',   href: '/dashboard/readers',     icon: CpuIcon },
-  { title: 'Users',     href: '/dashboard/users',       icon: UsersIcon },
+interface NavItem {
+  title: string
+  href: string
+  icon: LucideIcon
+  roles: readonly number[]
+}
+
+const ADMIN_ROLES = [Role.SuperAdmin, Role.Admin] as const
+const ALL_ROLES = [Role.SuperAdmin, Role.Admin, Role.Professor] as const
+
+const navItems: NavItem[] = [
+  { title: 'Dashboard',  href: '/dashboard',             icon: LayoutDashboardIcon, roles: ALL_ROLES },
+  { title: 'Calendar',   href: '/dashboard/calendar',    icon: CalendarIcon,        roles: ALL_ROLES },
+  { title: 'Attendance', href: '/dashboard/attendance',  icon: ClockIcon,           roles: ADMIN_ROLES },
+  { title: 'Readers',    href: '/dashboard/readers',     icon: CpuIcon,             roles: ADMIN_ROLES },
+  { title: 'Users',      href: '/dashboard/users',       icon: UsersIcon,           roles: ADMIN_ROLES },
 ]
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
+  userRole: number
+}
+
+export function AppSidebar({ userRole, ...props }: AppSidebarProps) {
   const pathname = usePathname()
+  const visibleNavItems = navItems.filter((item) => item.roles.includes(userRole))
 
   useGSAP(() => {
     if (prefersReducedMotion()) return
@@ -86,7 +105,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {navItems.map((item) => {
+                {visibleNavItems.map((item) => {
                   const active =
                     item.href === '/dashboard'
                       ? pathname === '/dashboard'

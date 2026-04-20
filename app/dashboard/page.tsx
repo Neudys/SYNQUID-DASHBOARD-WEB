@@ -2,8 +2,11 @@ import { LayoutDashboardIcon } from 'lucide-react'
 import { SiteHeader } from '@/components/site-header'
 import { DashboardStats } from '@/components/dashboard-stats'
 import { RecentAttendance } from '@/components/recent-attendance'
+import { TeacherDashboard } from '@/components/teacher-dashboard'
 import { backendFetch } from '@/lib/api'
 import { BACKEND } from '@/lib/endpoints'
+import { getCurrentUser, Role } from '@/lib/auth'
+import { redirect } from 'next/navigation'
 
 async function getActiveReaders() {
   try {
@@ -19,7 +22,7 @@ async function getActiveReaders() {
 async function getAttendanceToday() {
   try {
     const now = new Date()
-    const today = now.toISOString().slice(0, 19)  
+    const today = now.toISOString().slice(0, 19)
 
     const yesterday = new Date(now)
     yesterday.setDate(yesterday.getDate() - 1)
@@ -40,14 +43,13 @@ async function getAllAttendance() {
     if (!res.ok) return null
     const data = await res.json()
 
-    for (const record of data) 
-    {
+    for (const record of data) {
       const resU = await backendFetch(BACKEND.devices.detail(record.deviceId))
       const resD = await backendFetch(BACKEND.users.detail(record.userId))
       if (resU.ok) {
         const readerData = await resU.json()
         record.readerName = readerData.deviceInfo.name
-      } 
+      }
       if (resD.ok) {
         const userData = await resD.json()
         record.userName = userData.userData.firstName
@@ -58,16 +60,6 @@ async function getAllAttendance() {
     return null
   }
 }
-
-interface AttendanceRecord {
-  id: string
-  employeeName?: string
-  userName?: string
-  readerName?: string
-  timestamp?: string
-  createdAt?: string
-}
-
 
 async function getTotalUsers() {
   try {
@@ -80,9 +72,38 @@ async function getTotalUsers() {
   }
 }
 
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ groupId?: string }>
+}) {
+  const user = await getCurrentUser()
+  if (!user) redirect('/login')
+  if (user.role === Role.Student) redirect('/unauthorized')
 
-export default async function DashboardPage() {
-  const [ActiveReaders,totalUsers, allAttendance, attendanceToday] = await Promise.all([getActiveReaders(),getTotalUsers(), getAllAttendance(), getAttendanceToday()])
+  // Teacher flow
+  if (user.role === Role.Professor) {
+    const params = await searchParams
+    return (
+      <div className="flex flex-1 flex-col">
+        <SiteHeader
+          title="Dashboard"
+          description="Your classes at a glance"
+          icon={<LayoutDashboardIcon className="size-4" />}
+        />
+        <TeacherDashboard groupIdParam={params?.groupId} />
+      </div>
+    )
+  }
+
+  // Admin flow
+  const [ActiveReaders, totalUsers, allAttendance, attendanceToday] = await Promise.all([
+    getActiveReaders(),
+    getTotalUsers(),
+    getAllAttendance(),
+    getAttendanceToday(),
+  ])
+
   return (
     <div className="flex flex-1 flex-col">
       <SiteHeader
@@ -91,7 +112,6 @@ export default async function DashboardPage() {
         icon={<LayoutDashboardIcon className="size-4" />}
       />
       <div className="flex flex-col gap-6 p-4 md:p-6 lg:p-8">
-        {/* Welcome / overview strip */}
         <section className="relative overflow-hidden rounded-xl border border-border/60 bg-linear-to-br from-primary/5 via-card/60 to-teal/8 p-5 md:p-6 backdrop-blur-sm">
           <div className="absolute -right-10 -top-10 size-40 rounded-full bg-teal/10 blur-3xl" />
           <div className="relative">
@@ -105,15 +125,13 @@ export default async function DashboardPage() {
           </div>
         </section>
 
-        {/* KPIs */}
-        <DashboardStats 
-          activeReaders={ActiveReaders} 
+        <DashboardStats
+          activeReaders={ActiveReaders}
           attendanceToday={attendanceToday}
           totalUsers={totalUsers}
           lastAttendanceAt={allAttendance?.at(-1)?.timestampLocal ?? null}
-          />
+        />
 
-        {/* Recent attendance */}
         <RecentAttendance records={allAttendance ?? []} />
       </div>
     </div>

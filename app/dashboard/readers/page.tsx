@@ -1,8 +1,10 @@
 import { CpuIcon } from 'lucide-react'
 import { SiteHeader } from '@/components/site-header'
 import { ReadersTable } from '@/components/readers-table'
+import { requireRole, Role } from '@/lib/auth'
 
-export default function ReadersPage() {
+export default async function ReadersPage() {
+  await requireRole([Role.SuperAdmin, Role.Admin])
   return (
     <div className="flex flex-1 flex-col">
       <SiteHeader

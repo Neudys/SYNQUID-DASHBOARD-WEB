@@ -1,8 +1,10 @@
 import { ClockIcon } from 'lucide-react'
 import { SiteHeader } from '@/components/site-header'
 import { AttendanceTable } from '@/components/attendance-table'
+import { requireRole, Role } from '@/lib/auth'
 
-export default function AttendancePage() {
+export default async function AttendancePage() {
+  await requireRole([Role.SuperAdmin, Role.Admin])
   return (
     <div className="flex flex-1 flex-col">
       <SiteHeader

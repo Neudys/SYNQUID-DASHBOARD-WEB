@@ -84,6 +84,10 @@ export const BACKEND = {
     byUid:    (uid: string) => `/api/Nfc/${uid}`,
     delete:   (id: string) => `/api/Nfc/${id}`,
   },
+  teacher: {
+    myGroups:      '/api/Teacher/myGroups',
+    groupStudents: (groupId: string) => `/api/Teacher/groups/${groupId}/students`,
+  },
   dashboard: {
     /** No backend endpoint — the Next.js route aggregates stats + today */
     summary: '/api/Attendance/stats',

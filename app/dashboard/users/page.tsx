@@ -1,8 +1,10 @@
 import { UsersIcon } from 'lucide-react'
 import { SiteHeader } from '@/components/site-header'
 import { UsersTable } from '@/components/users-table'
+import { requireRole, Role } from '@/lib/auth'
 
-export default function UsersPage() {
+export default async function UsersPage() {
+  await requireRole([Role.SuperAdmin, Role.Admin])
   return (
     <div className="flex flex-1 flex-col">
       <SiteHeader
