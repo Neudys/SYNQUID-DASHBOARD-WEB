@@ -7,25 +7,34 @@ import { setAuthCookie } from '@/lib/auth'
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    console.log(BACKEND_BASE_URL, BACKEND.auth.login)
-    const res = await fetch(`${BACKEND_BASE_URL}${BACKEND.auth.login}`, {
+    const url = `${BACKEND_BASE_URL}${BACKEND.auth.login}`
+    console.log('[login] POST', url, { email: body.email })
+
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
 
+    console.log('[login] backend status:', res.status, res.statusText)
+
+    const rawText = await res.text()
+    console.log('[login] backend body:', rawText)
+
+    let data: Record<string, unknown> = {}
+    try { data = JSON.parse(rawText) } catch { /* not JSON */ }
+
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}))
       return NextResponse.json(
-        { message: data.message ?? 'Invalid credentials' },
+        { message: (data.message as string) ?? 'Invalid credentials' },
         { status: res.status }
       )
     }
 
-    const data = await res.json()
-    const token: string = data.token ?? data.accessToken ?? data.access_token
+    const token: string = (data.token ?? data.accessToken ?? data.access_token) as string
 
     if (!token) {
+      console.error('[login] no token field in response, keys:', Object.keys(data))
       return NextResponse.json({ message: 'No token received from server' }, { status: 500 })
     }
 

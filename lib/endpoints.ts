@@ -80,9 +80,12 @@ export const BACKEND = {
     attendance:     (id: string) => `/api/Institutions/${id}/attendance`,
   },
   nfc: {
-    register: '/api/Nfc/register',
-    byUid:    (uid: string) => `/api/Nfc/${uid}`,
-    delete:   (id: string) => `/api/Nfc/${id}`,
+    list:        '/api/Nfc',
+    register:    '/api/Nfc/register',
+    assignCard:  '/api/Nfc/AssignCard',
+    byUid:       (uid: string) => `/api/Nfc/${uid}`,
+    update:      (id: string) => `/api/Nfc/${id}`,
+    delete:      (id: string) => `/api/Nfc?id=${encodeURIComponent(id)}`,
   },
   teacher: {
     myGroups:      '/api/Teacher/myGroups',
@@ -109,4 +112,6 @@ export const API = {
   readers:    '/api/readers',
   users:      '/api/users',
   dashboard:  '/api/dashboard/summary',
+  nfc:        '/api/nfc',
+  nfcAssign:  '/api/nfc/assign',
 } as const
