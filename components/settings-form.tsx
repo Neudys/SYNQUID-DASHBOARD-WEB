@@ -79,6 +79,7 @@ export function SettingsForm({ user, institutionName }: SettingsFormProps) {
   const userId = pick(user?.id, user?.Id)
   const fullName = `${firstName} ${lastName}`.trim() || '—'
 
+  const rolText = role?.toString() === "0" ? 'Super Admin' : role?.toString() === "1" ? 'Admin' : role?.toString() === "2" ? 'Professor' : role?.toString() === "3" ? 'Student' : '—'
   // Password state
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -180,18 +181,13 @@ export function SettingsForm({ user, institutionName }: SettingsFormProps) {
               </Avatar>
               <div className="text-center">
                 <p className="text-base font-semibold text-foreground">{fullName}</p>
-                {role && (
-                  <span className="mt-1.5 inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium capitalize text-primary">
-                    {role}
-                  </span>
-                )}
               </div>
             </div>
 
             {/* Info grid */}
             <dl className="grid gap-x-6 gap-y-4 p-5 sm:grid-cols-2">
               <InfoRow icon={MailIcon} label="Email" value={email || '—'} />
-              <InfoRow icon={ShieldIcon} label="Role" value={role ?? '—'} />
+              <InfoRow icon={ShieldIcon} label="Role" value={rolText ?? '—'} />
               <InfoRow
                 icon={BuildingIcon}
                 label="Institution"

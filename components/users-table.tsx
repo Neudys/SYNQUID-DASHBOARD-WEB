@@ -91,7 +91,6 @@ export function UsersTable() {
       const res = await fetch(API.users)
       if (!res.ok) return;
       const data = await res.json()
-      console.log('Fetch users response:', data)
       setUsers(Array.isArray(data) ? data : data.users ?? [])
     } finally {
       setLoading(false)

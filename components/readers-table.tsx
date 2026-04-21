@@ -40,6 +40,7 @@ interface Reader {
   id: string
   name: string
   location?: string
+  institutionId?: string
   isActive?: boolean
   createdAt?: string
 }
@@ -134,6 +135,7 @@ export function ReadersTable() {
           name: editing.name,
           location: editing.location,
           isActive: editing.isActive,
+          institutionId: editing.institutionId, // for backward compatibility, remove in future
         }),
       })
       if (res.ok) {
@@ -324,6 +326,15 @@ export function ReadersTable() {
                 value={editing.location ?? ''}
                 onChange={(e) => setEditing({ ...editing, location: e.target.value })}
                 placeholder="Building A, Floor 1"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="reader-name">Institution ID</Label>
+              <Input
+                id="institution-id"
+                value={editing.name}
+                onChange={(e) => setEditing({ ...editing, institutionId: e.target.value })}
+                placeholder="Institution ID"
               />
             </div>
             <div className="flex items-center gap-2">

@@ -135,7 +135,6 @@ export function AttendanceTable() {
         }),
       )
 
-      console.log('Fetched attendance records:', data)
       const list: AttendanceRecord[] = Array.isArray(data)
         ? data
         : (data.items ?? [])

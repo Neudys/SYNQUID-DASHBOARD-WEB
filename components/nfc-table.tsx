@@ -154,6 +154,7 @@ export function NfcTable() {
     setLoading(true)
     try {
       const res = await fetch(API.nfc)
+      
       if (res.ok) {
         const data = await res.json()
         const list: RawNfc[] = Array.isArray(data) ? data : data.items ?? []
@@ -173,7 +174,7 @@ export function NfcTable() {
       if (res.ok) {
         const data = await res.json()
         const list: UserOption[] = Array.isArray(data) ? data : data.items ?? data.users ?? []
-        setStudents(list.filter((u) => (u.role ?? Role.Student) === Role.Student))
+        setStudents(students)
       } else {
         setStudents([])
       }
@@ -506,7 +507,7 @@ export function NfcTable() {
                   className="pl-9"
                 />
               </div>
-              <div className="max-h-56 overflow-y-auto rounded-lg border border-border/60 bg-popover">
+              <div className="max-h-80 overflow-y-auto rounded-lg border border-border/60 bg-popover">
                 {studentsLoading ? (
                   <div className="p-3 space-y-2">
                     <Skeleton className="h-8 w-full" />
@@ -631,7 +632,7 @@ export function NfcTable() {
                     className="pl-9"
                   />
                 </div>
-                <div className="max-h-48 overflow-y-auto rounded-lg border border-border/60 bg-popover">
+                <div className="max-h-80 overflow-y-auto rounded-lg border border-border/60 bg-popover">
                   {studentsLoading ? (
                     <div className="p-3 space-y-2">
                       <Skeleton className="h-8 w-full" />

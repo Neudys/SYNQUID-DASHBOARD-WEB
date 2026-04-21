@@ -8,7 +8,6 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const url = `${BACKEND_BASE_URL}${BACKEND.auth.login}`
-    console.log('[login] POST', url, { email: body.email })
 
     const res = await fetch(url, {
       method: 'POST',
@@ -16,10 +15,8 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify(body),
     })
 
-    console.log('[login] backend status:', res.status, res.statusText)
 
     const rawText = await res.text()
-    console.log('[login] backend body:', rawText)
 
     let data: Record<string, unknown> = {}
     try { data = JSON.parse(rawText) } catch { /* not JSON */ }
