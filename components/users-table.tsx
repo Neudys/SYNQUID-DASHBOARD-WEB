@@ -31,7 +31,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ConfirmDialog } from '@/components/confirm-dialog'
-import { PlusIcon, PencilIcon, TrashIcon, UsersIcon } from 'lucide-react'
+import { PlusIcon, PencilIcon, TrashIcon, UsersIcon, EyeIcon, EyeOffIcon } from 'lucide-react'
 import { API } from '@/lib/endpoints'
 import { DURATION, EASE, STAGGER, prefersReducedMotion } from '@/lib/animations'
 import { number } from 'zod'
@@ -46,24 +46,24 @@ interface User {
   role?: string
 }
 
-const EMPTY: User = { id: '', name: '', email: '', role: 'employee' }
-
-const roleStyles: Record<string, string> = {
-  admin: 'bg-primary/12 text-primary',
-  manager: 'bg-teal/15 text-teal',
-  employee: 'bg-sage/40 text-forest dark:bg-sage/15 dark:text-sage',
+const ROLES: Record<string, string> = {
+  '0': 'SuperAdmin',
+  '1': 'Admin',
+  '2': 'Professor',
+  '3': 'Student',
 }
 
-function normalizeRole(role: number) {
-  const key = role ?? 3
-  let roleName: string;
+const EMPTY: User = { id: '', name: '', email: '', role: '3' }
 
-  if (key === 0) roleName = 'SuperAdmin'
-  else if (key === 1) roleName = 'Admin'
-  else if (key === 2) roleName = 'Proffesor'
-  else roleName = 'Student'
-  
-  return roleName
+const roleStyles: Record<string, string> = {
+  '0': 'bg-destructive/10 text-destructive',
+  '1': 'bg-primary/12 text-primary',
+  '2': 'bg-teal/15 text-teal',
+  '3': 'bg-sage/40 text-forest dark:bg-sage/15 dark:text-sage',
+}
+
+function normalizeRole(role: string | number | undefined): string {
+  return ROLES[String(role ?? 3)] ?? 'Student'
 }
 
 function getInitials(name: string) {
@@ -84,6 +84,7 @@ export function UsersTable() {
   const [saving, setSaving] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<User | null>(null)
+  const [showPassword, setShowPassword] = useState(false)
 
   const fetchUsers = useCallback(async () => {
     setLoading(true)
@@ -140,11 +141,13 @@ export function UsersTable() {
 
   function openCreate() {
     setEditing(EMPTY)
+    setShowPassword(false)
     setDialogOpen(true)
   }
 
   function openEdit(user: User) {
-    setEditing({ ...user, password: '' })
+    setEditing({ ...user, role: String(user.role ?? '3'), password: '' })
+    setShowPassword(false)
     setDialogOpen(true)
   }
 
@@ -154,10 +157,10 @@ export function UsersTable() {
       const isNew = !editing.id
       const url = isNew ? API.users : `${API.users}/${editing.id}`
       const method = isNew ? 'POST' : 'PUT'
-      const payload: Record<string, string | undefined> = {
+      const payload: Record<string, unknown> = {
         name: editing.name,
         email: editing.email,
-        role: editing.role,
+        role: Number(editing.role ?? 3),
       }
       if (editing.password) payload.password = editing.password
       const res = await fetch(url, {
@@ -265,9 +268,9 @@ export function UsersTable() {
                     <TableCell className="text-muted-foreground">{user.email}</TableCell>
                     <TableCell>
                       <span
-                        className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium capitalize ${roleStyles[roleKey] ?? 'bg-muted/60 text-muted-foreground'}`}
+                        className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium capitalize ${roleStyles[String(user.role ?? '3')] ?? 'bg-muted/60 text-muted-foreground'}`}
                       >
-                        { normalizeRole(parseInt(user.role ?? "3")) ?? 'employee'}
+                        {normalizeRole(user.role)}
                       </span>
                     </TableCell>
                     <TableCell className="text-right">
@@ -330,16 +333,17 @@ export function UsersTable() {
             <div className="flex flex-col gap-2">
               <Label>Role</Label>
               <Select
-                value={editing.role ?? 'employee'}
+                value={editing.role ?? '3'}
                 onValueChange={(v) => setEditing({ ...editing, role: v ?? undefined })}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue>{ROLES[editing.role ?? '3'] ?? 'Student'}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="manager">Manager</SelectItem>
-                  <SelectItem value="employee">Employee</SelectItem>
+                  <SelectItem value="0">SuperAdmin</SelectItem>
+                  <SelectItem value="1">Admin</SelectItem>
+                  <SelectItem value="2">Professor</SelectItem>
+                  <SelectItem value="3">Student</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -347,13 +351,27 @@ export function UsersTable() {
               <Label htmlFor="user-password">
                 {editing.id ? 'New Password (leave blank to keep current)' : 'Password *'}
               </Label>
-              <Input
-                id="user-password"
-                type="password"
-                value={editing.password ?? ''}
-                onChange={(e) => setEditing({ ...editing, password: e.target.value })}
-                placeholder={editing.id ? '••••••••' : 'Min 8 characters'}
-              />
+              <div className="relative">
+                <Input
+                  id="user-password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={editing.password ?? ''}
+                  onChange={(e) => setEditing({ ...editing, password: e.target.value })}
+                  placeholder={editing.id ? '••••••••' : 'Min 8 characters'}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors duration-150 cursor-pointer"
+                  tabIndex={-1}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword
+                    ? <EyeOffIcon className="size-4" />
+                    : <EyeIcon className="size-4" />}
+                </button>
+              </div>
             </div>
           </div>
           <DialogFooter>
@@ -363,7 +381,7 @@ export function UsersTable() {
             <Button
               className="cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-transform duration-150 ease-out"
               onClick={handleSave}
-              disabled={saving || !editing.firstName?.trim() || !editing.email.trim()}
+              disabled={saving || !editing.name?.trim() || !editing.email?.trim()}
             >
               {saving ? 'Saving…' : editing.id ? 'Update' : 'Create'}
             </Button>
