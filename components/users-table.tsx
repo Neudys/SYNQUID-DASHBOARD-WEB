@@ -31,7 +31,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ConfirmDialog } from '@/components/confirm-dialog'
-import { PlusIcon, PencilIcon, TrashIcon, UsersIcon, EyeIcon, EyeOffIcon } from 'lucide-react'
+import { PlusIcon, PencilIcon, TrashIcon, UsersIcon, EyeIcon, EyeOffIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsLeftIcon, ChevronsRightIcon } from 'lucide-react'
 import { API } from '@/lib/endpoints'
 import { DURATION, EASE, STAGGER, prefersReducedMotion } from '@/lib/animations'
 import { number } from 'zod'
@@ -54,6 +54,7 @@ const ROLES: Record<string, string> = {
 }
 
 const EMPTY: User = { id: '', name: '', email: '', role: '3' }
+const PAGE_SIZE = 10
 
 const roleStyles: Record<string, string> = {
   '0': 'bg-destructive/10 text-destructive',
@@ -79,12 +80,15 @@ export function UsersTable() {
   const container = useRef<HTMLDivElement>(null)
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<User & { password?: string }>(EMPTY)
   const [saving, setSaving] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<User | null>(null)
   const [showPassword, setShowPassword] = useState(false)
+
+  useEffect(() => { setPage(1) }, [users])
 
   const fetchUsers = useCallback(async () => {
     setLoading(true)
@@ -188,6 +192,9 @@ export function UsersTable() {
     }
   }
 
+  const totalPages = Math.max(1, Math.ceil(users.length / PAGE_SIZE))
+  const pageUsers = users.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
   return (
     <div ref={container} className="flex flex-col gap-5">
       {/* Toolbar */}
@@ -249,7 +256,7 @@ export function UsersTable() {
                 </TableCell>
               </TableRow>
             ) : (
-              users.map((user) => {
+              pageUsers.map((user) => {
                 const roleKey = user.role ?? 'employee'
                 return (
                   <TableRow
@@ -302,6 +309,30 @@ export function UsersTable() {
             )}
           </TableBody>
         </Table>
+        {!loading && totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border/40">
+            <p className="hidden text-sm text-muted-foreground lg:block">
+              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, users.length)} of {users.length}
+            </p>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">Page {page} of {totalPages}</span>
+              <div className="flex items-center gap-1">
+                <Button variant="outline" size="icon" className="hidden size-8 lg:flex cursor-pointer" disabled={page === 1} onClick={() => setPage(1)}>
+                  <span className="sr-only">First page</span><ChevronsLeftIcon />
+                </Button>
+                <Button variant="outline" size="icon" className="size-8 cursor-pointer" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
+                  <span className="sr-only">Previous page</span><ChevronLeftIcon />
+                </Button>
+                <Button variant="outline" size="icon" className="size-8 cursor-pointer" disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>
+                  <span className="sr-only">Next page</span><ChevronRightIcon />
+                </Button>
+                <Button variant="outline" size="icon" className="hidden size-8 lg:flex cursor-pointer" disabled={page === totalPages} onClick={() => setPage(totalPages)}>
+                  <span className="sr-only">Last page</span><ChevronsRightIcon />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Create / Edit Dialog */}

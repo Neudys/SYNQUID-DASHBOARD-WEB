@@ -260,7 +260,7 @@ export function TeacherCalendar({ groups }: Props) {
   const currentToday = today
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-1 flex-col gap-4 overflow-hidden min-h-0">
       {/* Controls */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-col gap-2">
@@ -372,7 +372,7 @@ function DayView({
 }) {
   const canGoNext = date.getTime() < today.getTime()
   return (
-    <Card className="overflow-hidden border-border/60 bg-card/80 backdrop-blur-sm">
+    <Card className="flex flex-col flex-1 min-h-0 overflow-hidden border-border/60 bg-card/80 backdrop-blur-sm">
       <div className="flex flex-wrap items-center gap-3 border-b border-border/60 bg-linear-to-r from-primary/8 via-transparent to-teal/10 px-5 py-3.5">
         <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
           <CalendarIcon className="size-4" />
@@ -407,7 +407,7 @@ function DayView({
           </Button>
         </div>
       </div>
-      <CardContent className="p-0">
+      <CardContent className="flex-1 overflow-auto min-h-0 p-0">
         {loading ? (
           <div className="flex items-center justify-center gap-2 px-6 py-12 text-sm text-muted-foreground">
             <Loader2Icon className="size-4 animate-spin" />
@@ -517,7 +517,7 @@ function MonthView({
     new Date(year, month + 1, 1).getTime() > new Date(today.getFullYear(), today.getMonth(), 1).getTime()
 
   return (
-    <Card className="overflow-hidden border-border/60 bg-card/80 backdrop-blur-sm">
+    <Card className="flex flex-col flex-1 min-h-0 overflow-hidden border-border/60 bg-card/80 backdrop-blur-sm">
       <div className="flex items-center gap-3 border-b border-border/60 bg-linear-to-r from-primary/8 via-transparent to-teal/10 px-5 py-3.5">
         <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
           <CalendarIcon className="size-4" />
@@ -541,7 +541,7 @@ function MonthView({
           </Button>
         </div>
       </div>
-      <CardContent className="p-5">
+      <CardContent className="flex-1 overflow-auto min-h-0 p-5">
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
             <Loader2Icon className="size-4 animate-spin" />

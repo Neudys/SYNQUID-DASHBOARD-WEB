@@ -22,13 +22,13 @@ export default async function CalendarPage() {
   const groups = await fetchGroups()
 
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="flex flex-1 flex-col overflow-hidden">
       <SiteHeader
         title="Calendar"
         description="Review and update attendance by day"
         icon={<CalendarIcon className="size-4" />}
       />
-      <div className="p-4 md:p-6 lg:p-8">
+      <div className="flex flex-1 flex-col overflow-hidden p-4 md:p-6 lg:p-8">
         <TeacherCalendar groups={groups} />
       </div>
     </div>

@@ -37,6 +37,10 @@ import {
   Building2Icon,
   CircleCheckIcon,
   CircleSlashIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ChevronsLeftIcon,
+  ChevronsRightIcon,
   type LucideIcon,
 } from 'lucide-react'
 import { API } from '@/lib/endpoints'
@@ -125,11 +129,14 @@ function parseCard(c: RawNfc): NfcCard {
   }
 }
 
+const PAGE_SIZE = 10
+
 export function NfcTable() {
   const container = useRef<HTMLDivElement>(null)
 
   const [cards, setCards] = useState<NfcCard[]>([])
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
 
   const [assignOpen, setAssignOpen] = useState(false)
   const [assignUuid, setAssignUuid] = useState('')
@@ -149,6 +156,8 @@ export function NfcTable() {
 
   const [confirmDelete, setConfirmDelete] = useState<NfcCard | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  useEffect(() => { setPage(1) }, [cards])
 
   const fetchCards = useCallback(async () => {
     setLoading(true)
@@ -339,6 +348,9 @@ export function NfcTable() {
     }
   }
 
+  const totalPages = Math.max(1, Math.ceil(cards.length / PAGE_SIZE))
+  const pageCards = cards.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
   return (
     <div ref={container} className="flex flex-col gap-6">
       <StatsGrid
@@ -409,7 +421,7 @@ export function NfcTable() {
                 </TableCell>
               </TableRow>
             ) : (
-              cards.map((card) => {
+              pageCards.map((card) => {
                 const name = displayName(card)
                 return (
                   <TableRow
@@ -476,6 +488,30 @@ export function NfcTable() {
             )}
           </TableBody>
         </Table>
+        {!loading && totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border/40">
+            <p className="hidden text-sm text-muted-foreground lg:block">
+              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, cards.length)} of {cards.length}
+            </p>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">Page {page} of {totalPages}</span>
+              <div className="flex items-center gap-1">
+                <Button variant="outline" size="icon" className="hidden size-8 lg:flex cursor-pointer" disabled={page === 1} onClick={() => setPage(1)}>
+                  <span className="sr-only">First page</span><ChevronsLeftIcon />
+                </Button>
+                <Button variant="outline" size="icon" className="size-8 cursor-pointer" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
+                  <span className="sr-only">Previous page</span><ChevronLeftIcon />
+                </Button>
+                <Button variant="outline" size="icon" className="size-8 cursor-pointer" disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>
+                  <span className="sr-only">Next page</span><ChevronRightIcon />
+                </Button>
+                <Button variant="outline" size="icon" className="hidden size-8 lg:flex cursor-pointer" disabled={page === totalPages} onClick={() => setPage(totalPages)}>
+                  <span className="sr-only">Last page</span><ChevronsRightIcon />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Assign Dialog */}

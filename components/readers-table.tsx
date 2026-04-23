@@ -30,6 +30,10 @@ import {
   TrashIcon,
   RefreshCwIcon,
   CpuIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ChevronsLeftIcon,
+  ChevronsRightIcon,
 } from 'lucide-react'
 import { API } from '@/lib/endpoints'
 import { DURATION, EASE, STAGGER, prefersReducedMotion } from '@/lib/animations'
@@ -46,11 +50,13 @@ interface Reader {
 }
 
 const EMPTY: Reader = { id: '', name: '', location: '', isActive: true }
+const PAGE_SIZE = 10
 
 export function ReadersTable() {
   const container = useRef<HTMLDivElement>(null)
   const [readers, setReaders] = useState<Reader[]>([])
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Reader>(EMPTY)
   const [saving, setSaving] = useState(false)
@@ -59,6 +65,8 @@ export function ReadersTable() {
   const [newKey, setNewKey] = useState<{ readerId: string; key: string } | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<Reader | null>(null)
   const [confirmRegenerate, setConfirmRegenerate] = useState<Reader | null>(null)
+
+  useEffect(() => { setPage(1) }, [readers])
 
   const fetchReaders = useCallback(async () => {
     setLoading(true)
@@ -175,6 +183,9 @@ export function ReadersTable() {
     }
   }
 
+  const totalPages = Math.max(1, Math.ceil(readers.length / PAGE_SIZE))
+  const pageReaders = readers.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
   return (
     <div ref={container} className="flex flex-col gap-5">
       {/* Toolbar surface */}
@@ -237,7 +248,7 @@ export function ReadersTable() {
                 </TableCell>
               </TableRow>
             ) : (
-              readers.map((reader) => (
+              pageReaders.map((reader) => (
                 <TableRow
                   key={reader.id}
                   data-row
@@ -301,6 +312,30 @@ export function ReadersTable() {
             )}
           </TableBody>
         </Table>
+        {!loading && totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border/40">
+            <p className="hidden text-sm text-muted-foreground lg:block">
+              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, readers.length)} of {readers.length}
+            </p>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">Page {page} of {totalPages}</span>
+              <div className="flex items-center gap-1">
+                <Button variant="outline" size="icon" className="hidden size-8 lg:flex cursor-pointer" disabled={page === 1} onClick={() => setPage(1)}>
+                  <span className="sr-only">First page</span><ChevronsLeftIcon />
+                </Button>
+                <Button variant="outline" size="icon" className="size-8 cursor-pointer" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
+                  <span className="sr-only">Previous page</span><ChevronLeftIcon />
+                </Button>
+                <Button variant="outline" size="icon" className="size-8 cursor-pointer" disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>
+                  <span className="sr-only">Next page</span><ChevronRightIcon />
+                </Button>
+                <Button variant="outline" size="icon" className="hidden size-8 lg:flex cursor-pointer" disabled={page === totalPages} onClick={() => setPage(totalPages)}>
+                  <span className="sr-only">Last page</span><ChevronsRightIcon />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Create / Edit Dialog */}
