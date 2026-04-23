@@ -47,6 +47,7 @@ import { API } from '@/lib/endpoints'
 import { Role } from '@/lib/roles'
 import { cn } from '@/lib/utils'
 import { DURATION, EASE, STAGGER, prefersReducedMotion } from '@/lib/animations'
+import { clientCache } from '@/lib/client-cache'
 
 gsap.registerPlugin(useGSAP)
 
@@ -159,15 +160,20 @@ export function NfcTable() {
 
   useEffect(() => { setPage(1) }, [cards])
 
-  const fetchCards = useCallback(async () => {
+  const fetchCards = useCallback(async (force = false) => {
+    if (!force) {
+      const cached = clientCache.get<NfcCard[]>('nfc-cards')
+      if (cached) { setCards(cached); setLoading(false); return }
+    }
     setLoading(true)
     try {
       const res = await fetch(API.nfc)
-      
       if (res.ok) {
         const data = await res.json()
         const list: RawNfc[] = Array.isArray(data) ? data : data.items ?? []
-        setCards(list.map(parseCard))
+        const parsed = list.map(parseCard)
+        clientCache.set('nfc-cards', parsed)
+        setCards(parsed)
       } else {
         setCards([])
       }
@@ -305,8 +311,9 @@ export function NfcTable() {
         }),
       })
       if (res.ok) {
+        clientCache.del('nfc-cards')
         setAssignOpen(false)
-        await fetchCards()
+        await fetchCards(true)
       } else {
         const data = await res.json().catch(() => ({}))
         setAssignError(data.message ?? 'Failed to assign card')
@@ -329,8 +336,9 @@ export function NfcTable() {
         }),
       })
       if (res.ok) {
+        clientCache.del('nfc-cards')
         setEditOpen(false)
-        await fetchCards()
+        await fetchCards(true)
       }
     } finally {
       setEditSaving(false)
@@ -341,7 +349,8 @@ export function NfcTable() {
     setDeletingId(id)
     try {
       await fetch(`${API.nfc}/${id}`, { method: 'DELETE' })
-      await fetchCards()
+      clientCache.del('nfc-cards')
+      await fetchCards(true)
     } finally {
       setDeletingId(null)
       setConfirmDelete(null)

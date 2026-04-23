@@ -7,7 +7,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
   await requireAuth()
   const user = await getCurrentUser()
   if (!user) redirect('/login')
-  if (user.role === Role.Student) redirect('/unauthorized')
 
   return (
     <SidebarProvider

@@ -37,6 +37,7 @@ import {
 } from 'lucide-react'
 import { API } from '@/lib/endpoints'
 import { DURATION, EASE, STAGGER, prefersReducedMotion } from '@/lib/animations'
+import { clientCache } from '@/lib/client-cache'
 
 gsap.registerPlugin(useGSAP)
 
@@ -68,12 +69,18 @@ export function ReadersTable() {
 
   useEffect(() => { setPage(1) }, [readers])
 
-  const fetchReaders = useCallback(async () => {
+  const fetchReaders = useCallback(async (force = false) => {
+    if (!force) {
+      const cached = clientCache.get<Reader[]>('readers')
+      if (cached) { setReaders(cached); setLoading(false); return }
+    }
     setLoading(true)
     try {
       const res = await fetch(API.readers)
       const data = await res.json()
-      setReaders(Array.isArray(data) ? data : data.items ?? [])
+      const list: Reader[] = Array.isArray(data) ? data : data.items ?? []
+      clientCache.set('readers', list)
+      setReaders(list)
     } finally {
       setLoading(false)
     }
@@ -147,8 +154,9 @@ export function ReadersTable() {
         }),
       })
       if (res.ok) {
+        clientCache.del('readers')
         setDialogOpen(false)
-        await fetchReaders()
+        await fetchReaders(true)
       }
     } finally {
       setSaving(false)
@@ -159,7 +167,8 @@ export function ReadersTable() {
     setDeletingId(id)
     try {
       await fetch(`${API.readers}/${id}`, { method: 'DELETE' })
-      await fetchReaders()
+      clientCache.del('readers')
+      await fetchReaders(true)
     } finally {
       setDeletingId(null)
       setConfirmDelete(null)
@@ -171,11 +180,13 @@ export function ReadersTable() {
     try {
       const res = await fetch(`${API.readers}/${id}/regenerate-key`, { method: 'POST' })
       if (res.ok) {
+        clientCache.del('readers')
         const data = await res.json()
         setNewKey({
           readerId: id,
           key: data.apiKey ?? data.key ?? '(check server response)',
         })
+        await fetchReaders(true)
       }
     } finally {
       setRegeneratingId(null)

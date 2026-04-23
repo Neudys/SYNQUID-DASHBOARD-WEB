@@ -17,6 +17,7 @@ export default function UnauthorizedPage() {
         <Button
           className="mt-6 cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90"
           render={<Link href="/dashboard" />}
+          nativeButton={false}
         >
           <ArrowLeftIcon className="size-4" />
           Back to dashboard

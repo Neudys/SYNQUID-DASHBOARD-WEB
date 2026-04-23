@@ -1,53 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { BACKEND_BASE_URL, BACKEND } from '@/lib/endpoints'
 
 const PUBLIC_PATHS = ['/login', '/api/auth/login']
 
-async function validateToken(token: string): Promise<boolean> {
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
   try {
-    const res = await fetch(`${BACKEND_BASE_URL}${BACKEND.auth.validateToken}`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    return res.ok
+    const part = token.split('.')[1]
+    if (!part) return null
+    const b64 = part.replace(/-/g, '+').replace(/_/g, '/')
+    return JSON.parse(atob(b64))
   } catch {
-    return false
+    return null
   }
+}
+
+function isTokenFresh(token: string): boolean {
+  const payload = decodeJwtPayload(token)
+  if (!payload) return false
+  const exp = typeof payload.exp === 'number' ? payload.exp : null
+  if (exp === null) return true
+  return Date.now() / 1000 < exp
 }
 
 function redirectToLogin(req: NextRequest, pathname: string): NextResponse {
   const loginUrl = new URL('/login', req.url)
   loginUrl.searchParams.set('from', pathname)
-  const response = NextResponse.redirect(loginUrl)
-  response.cookies.set('synquid_token', '', { maxAge: 0, path: '/' })
-  return response
+  const res = NextResponse.redirect(loginUrl)
+  res.cookies.set('synquid_token', '', { maxAge: 0, path: '/' })
+  return res
 }
 
-export async function middleware(req: NextRequest) {
+export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
   const token = req.cookies.get('synquid_token')?.value
 
-  // If on login page with a token, validate and redirect to dashboard if valid
   if (token && pathname.startsWith('/login')) {
-    const valid = await validateToken(token)
-    if (valid) {
-      return NextResponse.redirect(new URL('/dashboard', req.url))
-    }
-    // Token invalid — clear cookie and let them stay on login
-    const response = NextResponse.next()
-    response.cookies.set('synquid_token', '', { maxAge: 0, path: '/' })
-    return response
+    if (isTokenFresh(token)) return NextResponse.redirect(new URL('/dashboard', req.url))
+    const res = NextResponse.next()
+    res.cookies.set('synquid_token', '', { maxAge: 0, path: '/' })
+    return res
   }
 
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p))
   if (isPublic) return NextResponse.next()
 
-  // No token — redirect to login
   if (!token) return redirectToLogin(req, pathname)
-
-  // Validate token on protected routes
-  const valid = await validateToken(token)
-  if (!valid) return redirectToLogin(req, pathname)
+  if (!isTokenFresh(token)) return redirectToLogin(req, pathname)
 
   return NextResponse.next()
 }

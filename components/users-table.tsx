@@ -34,6 +34,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { PlusIcon, PencilIcon, TrashIcon, UsersIcon, EyeIcon, EyeOffIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsLeftIcon, ChevronsRightIcon } from 'lucide-react'
 import { API } from '@/lib/endpoints'
 import { DURATION, EASE, STAGGER, prefersReducedMotion } from '@/lib/animations'
+import { clientCache } from '@/lib/client-cache'
 import { number } from 'zod'
 
 gsap.registerPlugin(useGSAP)
@@ -90,13 +91,19 @@ export function UsersTable() {
 
   useEffect(() => { setPage(1) }, [users])
 
-  const fetchUsers = useCallback(async () => {
+  const fetchUsers = useCallback(async (force = false) => {
+    if (!force) {
+      const cached = clientCache.get<User[]>('users')
+      if (cached) { setUsers(cached); setLoading(false); return }
+    }
     setLoading(true)
     try {
       const res = await fetch(API.users)
-      if (!res.ok) return;
+      if (!res.ok) return
       const data = await res.json()
-      setUsers(Array.isArray(data) ? data : data.users ?? [])
+      const list: User[] = Array.isArray(data) ? data : data.users ?? []
+      clientCache.set('users', list)
+      setUsers(list)
     } finally {
       setLoading(false)
     }
@@ -173,8 +180,9 @@ export function UsersTable() {
         body: JSON.stringify(payload),
       })
       if (res.ok) {
+        clientCache.del('users')
         setDialogOpen(false)
-        await fetchUsers()
+        await fetchUsers(true)
       }
     } finally {
       setSaving(false)
@@ -185,7 +193,8 @@ export function UsersTable() {
     setDeletingId(id)
     try {
       await fetch(`${API.users}/${id}`, { method: 'DELETE' })
-      await fetchUsers()
+      clientCache.del('users')
+      await fetchUsers(true)
     } finally {
       setDeletingId(null)
       setConfirmDelete(null)

@@ -3,6 +3,7 @@ import { SiteHeader } from '@/components/site-header'
 import { DashboardStats } from '@/components/dashboard-stats'
 import { RecentAttendance } from '@/components/recent-attendance'
 import { TeacherDashboard } from '@/components/teacher-dashboard'
+import { StudentDashboard } from '@/components/student-dashboard'
 import { backendFetch } from '@/lib/api'
 import { BACKEND } from '@/lib/endpoints'
 import { getCurrentUser, Role } from '@/lib/auth'
@@ -79,7 +80,20 @@ export default async function DashboardPage({
 }) {
   const user = await getCurrentUser()
   if (!user) redirect('/login')
-  if (user.role === Role.Student) redirect('/unauthorized')
+
+  // Student flow
+  if (user.role === Role.Student) {
+    return (
+      <div className="flex flex-1 flex-col">
+        <SiteHeader
+          title="Faltas & Clases"
+          description="Tu historial de asistencia"
+          icon={<LayoutDashboardIcon className="size-4" />}
+        />
+        <StudentDashboard />
+      </div>
+    )
+  }
 
   // Teacher flow
   if (user.role === Role.Professor) {

@@ -43,16 +43,19 @@ interface NavItem {
   roles: readonly number[]
 }
 
-const ADMIN_ROLES = [Role.SuperAdmin, Role.Admin] as const
-const ALL_ROLES = [Role.SuperAdmin, Role.Admin, Role.Professor] as const
+const ADMIN_ROLES   = [Role.SuperAdmin, Role.Admin] as const
+const STAFF_ROLES   = [Role.SuperAdmin, Role.Admin, Role.Professor] as const
+const STUDENT_ROLES = [Role.Student] as const
+const ALL_ROLES     = [Role.SuperAdmin, Role.Admin, Role.Professor, Role.Student] as const
 
 const navItems: NavItem[] = [
-  { title: 'Dashboard',  href: '/dashboard',             icon: LayoutDashboardIcon, roles: ALL_ROLES },
-  { title: 'Calendar',   href: '/dashboard/calendar',    icon: CalendarIcon,        roles: ALL_ROLES },
-  { title: 'Attendance', href: '/dashboard/attendance',  icon: ClockIcon,           roles: ADMIN_ROLES },
-  { title: 'Readers',    href: '/dashboard/readers',     icon: CpuIcon,             roles: ADMIN_ROLES },
-  { title: 'Users',      href: '/dashboard/users',       icon: UsersIcon,           roles: ADMIN_ROLES },
-  { title: 'NFC',        href: '/dashboard/nfc',         icon: CreditCardIcon,      roles: ADMIN_ROLES },
+  { title: 'Dashboard',      href: '/dashboard',            icon: LayoutDashboardIcon, roles: STAFF_ROLES },
+  { title: 'Faltas & Clases', href: '/dashboard',           icon: ClockIcon,           roles: STUDENT_ROLES },
+  { title: 'Calendar',       href: '/dashboard/calendar',   icon: CalendarIcon,        roles: STAFF_ROLES },
+  { title: 'Attendance',     href: '/dashboard/attendance', icon: ClockIcon,           roles: ADMIN_ROLES },
+  { title: 'Readers',        href: '/dashboard/readers',    icon: CpuIcon,             roles: ADMIN_ROLES },
+  { title: 'Users',          href: '/dashboard/users',      icon: UsersIcon,           roles: ADMIN_ROLES },
+  { title: 'NFC',            href: '/dashboard/nfc',        icon: CreditCardIcon,      roles: ADMIN_ROLES },
 ]
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
