@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import gsap from 'gsap'
 import { useGSAP } from '@gsap/react'
@@ -13,17 +13,33 @@ import {
   Loader2Icon,
   AlertCircleIcon,
 } from 'lucide-react'
+import { DNA } from 'react-loader-spinner'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
 
 gsap.registerPlugin(useGSAP)
+
+const REMEMBER_KEY = 'synquid_remember'
 
 export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) {
   const { login, loading, error } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [rememberMe, setRememberMe] = useState(false)
   const container = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(REMEMBER_KEY)
+      if (saved) {
+        const { email: savedEmail, password: savedPassword } = JSON.parse(saved)
+        setEmail(savedEmail ?? '')
+        setPassword(savedPassword ?? '')
+        setRememberMe(true)
+      }
+    } catch { /* corrupted storage — ignore */ }
+  }, [])
 
   useGSAP(
     () => {
@@ -48,10 +64,34 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (rememberMe) {
+      localStorage.setItem(REMEMBER_KEY, JSON.stringify({ email, password }))
+    } else {
+      localStorage.removeItem(REMEMBER_KEY)
+    }
     await login({ email, password })
   }
 
   return (
+    <>
+      {loading && (
+        <div
+          role="status"
+          aria-label="Signing in"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+        >
+          <div className="flex items-center justify-center rounded-2xl bg-background shadow-2xl size-32.5">
+            <DNA
+              dnaColorOne = "#c2d8c4"
+              dnaColorTwo = "#385144"
+              visible
+              height={90}
+              width={90}
+              ariaLabel="signing-in"
+            />
+          </div>
+        </div>
+      )}
     <div
       ref={container}
       className={cn('flex w-full max-w-sm flex-col gap-8', className)}
@@ -133,6 +173,8 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
           <label className="inline-flex cursor-pointer items-center gap-2 text-muted-foreground select-none">
             <input
               type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
               className="size-4 cursor-pointer rounded border-input accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
             />
             Remember me
@@ -172,6 +214,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
         </a>
       </p>
     </div>
+    </>
   )
 }
 

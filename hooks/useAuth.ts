@@ -33,7 +33,7 @@ export function useAuth() {
         return false
       }
 
-      setState({ loading: false, error: null })
+      // Keep loading=true — spinner stays until navigation unmounts the component
       router.push('/dashboard')
       router.refresh()
       return true
