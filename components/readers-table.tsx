@@ -417,7 +417,11 @@ export function ReadersTable() {
                 onValueChange={(v) => setEditing({ ...editing, institutionId: v ?? undefined })}
               >
                 <SelectTrigger id="institution-id">
-                  <SelectValue placeholder="Select institution…" />
+                  <SelectValue placeholder="Select institution…">
+                    {editing.institutionId
+                      ? institutions.find((i) => i.id === editing.institutionId)?.name ?? 'Select institution…'
+                      : null}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {institutions.map((inst) => (

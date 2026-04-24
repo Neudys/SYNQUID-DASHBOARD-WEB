@@ -269,7 +269,11 @@ export function TeacherCalendar({ groups }: Props) {
           </label>
           <Select value={groupId} onValueChange={(v) => v && setGroupId(v)}>
             <SelectTrigger className="w-full max-w-xs bg-card/80 backdrop-blur-sm">
-              <SelectValue placeholder="Select a class" />
+              <SelectValue placeholder="Select a class">
+                {groupId
+                  ? groups.find((g) => g.groupId === groupId)?.groupName ?? 'Select a class'
+                  : null}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {groups.map((g) => (

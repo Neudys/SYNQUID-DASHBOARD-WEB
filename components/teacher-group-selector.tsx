@@ -42,7 +42,11 @@ export function TeacherGroupSelector({ groups, activeGroupId }: Props) {
       </label>
       <Select value={activeGroupId ?? undefined} onValueChange={handleChange}>
         <SelectTrigger className="w-full max-w-md bg-card/80 backdrop-blur-sm">
-          <SelectValue placeholder="Select a class" />
+          <SelectValue placeholder="Select a class">
+            {activeGroupId
+              ? groups.find((g) => g.groupId === activeGroupId)?.groupName ?? 'Select a class'
+              : null}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {groups.map((g) => (
