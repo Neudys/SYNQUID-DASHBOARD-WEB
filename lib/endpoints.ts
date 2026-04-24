@@ -87,6 +87,15 @@ export const BACKEND = {
     update:      (id: string) => `/api/Nfc/${id}`,
     delete:      (id: string) => `/api/Nfc?id=${encodeURIComponent(id)}`,
   },
+  groups: {
+    list:          '/api/groups',
+    create:        '/api/groups',
+    detail:        (id: string) => `/api/groups/${id}`,
+    update:        (id: string) => `/api/groups/${id}`,
+    delete:        (id: string) => `/api/groups/${id}`,
+    members:       (id: string) => `/api/groups/${id}/members`,
+    removeMember:  (id: string, userId: string) => `/api/groups/${id}/members/${userId}`,
+  },
   teacher: {
     myGroups:      '/api/Teacher/myGroups',
     groupStudents: (groupId: string) => `/api/Teacher/groups/${groupId}/students`,
@@ -112,6 +121,7 @@ export const API = {
   readers:       '/api/readers',
   users:         '/api/users',
   institutions:  '/api/institutions',
+  groups:        '/api/groups',
   dashboard:  '/api/dashboard/summary',
   nfc:        '/api/nfc',
   nfcAssign:  '/api/nfc/assign',
