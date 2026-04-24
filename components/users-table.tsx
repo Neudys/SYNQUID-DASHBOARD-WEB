@@ -40,11 +40,12 @@ import { number } from 'zod'
 gsap.registerPlugin(useGSAP)
 
 interface User {
-  firstName?: string
   id: string
   name: string
+  lastName?: string
   email: string
   role?: string
+  password?: string
 }
 
 const ROLES: Record<string, string> = {
@@ -54,7 +55,7 @@ const ROLES: Record<string, string> = {
   '3': 'Student',
 }
 
-const EMPTY: User = { id: '', name: '', email: '', role: '3' }
+const EMPTY: User = { id: '', name: '', lastName: '', email: '', role: '3', password: '' }
 const PAGE_SIZE = 10
 
 const roleStyles: Record<string, string> = {
@@ -88,6 +89,7 @@ export function UsersTable() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<User | null>(null)
   const [showPassword, setShowPassword] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   useEffect(() => { setPage(1) }, [users])
 
@@ -153,27 +155,31 @@ export function UsersTable() {
   function openCreate() {
     setEditing(EMPTY)
     setShowPassword(false)
+    setSaveError(null)
     setDialogOpen(true)
   }
 
   function openEdit(user: User) {
     setEditing({ ...user, role: String(user.role ?? '3'), password: '' })
     setShowPassword(false)
+    setSaveError(null)
     setDialogOpen(true)
   }
 
   async function handleSave() {
     setSaving(true)
+    setSaveError(null)
     try {
       const isNew = !editing.id
       const url = isNew ? API.users : `${API.users}/${editing.id}`
       const method = isNew ? 'POST' : 'PUT'
       const payload: Record<string, unknown> = {
         name: editing.name,
+        lastName: editing.lastName ?? '',
         email: editing.email,
-        role: Number(editing.role ?? 3),
+        rol: Number(editing.role ?? 3),
+        password: editing.password ?? '',
       }
-      if (editing.password) payload.password = editing.password
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -183,6 +189,9 @@ export function UsersTable() {
         clientCache.del('users')
         setDialogOpen(false)
         await fetchUsers(true)
+      } else {
+        const data = await res.json().catch(() => ({}))
+        setSaveError(data.message ?? 'Error al guardar el usuario')
       }
     } finally {
       setSaving(false)
@@ -357,7 +366,16 @@ export function UsersTable() {
                 id="user-name"
                 value={editing.name}
                 onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-                placeholder="Jane Doe"
+                placeholder="Jane"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="user-lastname">Last Name</Label>
+              <Input
+                id="user-lastname"
+                value={editing.lastName ?? ''}
+                onChange={(e) => setEditing({ ...editing, lastName: e.target.value })}
+                placeholder="Doe"
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -414,6 +432,9 @@ export function UsersTable() {
               </div>
             </div>
           </div>
+          {saveError && (
+            <p className="text-sm text-destructive px-1">{saveError}</p>
+          )}
           <DialogFooter>
             <DialogClose render={<Button variant="outline" className="cursor-pointer" />}>
               Cancel
@@ -421,7 +442,7 @@ export function UsersTable() {
             <Button
               className="cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-transform duration-150 ease-out"
               onClick={handleSave}
-              disabled={saving || !editing.name?.trim() || !editing.email?.trim()}
+              disabled={saving || !editing.name?.trim() || !editing.email?.trim() || (!editing.id && !editing.password?.trim())}
             >
               {saving ? 'Saving…' : editing.id ? 'Update' : 'Create'}
             </Button>

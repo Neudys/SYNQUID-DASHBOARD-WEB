@@ -23,6 +23,13 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
   PlusIcon,
@@ -41,16 +48,22 @@ import { clientCache } from '@/lib/client-cache'
 
 gsap.registerPlugin(useGSAP)
 
+interface Institution {
+  id: string
+  name: string
+}
+
 interface Reader {
   id: string
   name: string
   location?: string
   institutionId?: string
+  firmwareVersion?: string
   isActive?: boolean
   createdAt?: string
 }
 
-const EMPTY: Reader = { id: '', name: '', location: '', isActive: true }
+const EMPTY: Reader = { id: '', name: '', location: '', institutionId: '', firmwareVersion: '', isActive: true }
 const PAGE_SIZE = 10
 
 export function ReadersTable() {
@@ -66,8 +79,23 @@ export function ReadersTable() {
   const [newKey, setNewKey] = useState<{ readerId: string; key: string } | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<Reader | null>(null)
   const [confirmRegenerate, setConfirmRegenerate] = useState<Reader | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [institutions, setInstitutions] = useState<Institution[]>([])
 
   useEffect(() => { setPage(1) }, [readers])
+
+  useEffect(() => {
+    const cached = clientCache.get<Institution[]>('institutions')
+    if (cached) { setInstitutions(cached); return }
+    fetch(API.institutions)
+      .then((r) => r.json())
+      .then((data) => {
+        const list: Institution[] = Array.isArray(data) ? data : data.items ?? []
+        clientCache.set('institutions', list)
+        setInstitutions(list)
+      })
+      .catch(() => {})
+  }, [])
 
   const fetchReaders = useCallback(async (force = false) => {
     if (!force) {
@@ -129,16 +157,19 @@ export function ReadersTable() {
 
   function openCreate() {
     setEditing(EMPTY)
+    setSaveError(null)
     setDialogOpen(true)
   }
 
   function openEdit(reader: Reader) {
     setEditing({ ...reader })
+    setSaveError(null)
     setDialogOpen(true)
   }
 
   async function handleSave() {
     setSaving(true)
+    setSaveError(null)
     try {
       const isNew = !editing.id
       const url = isNew ? API.readers : `${API.readers}/${editing.id}`
@@ -148,15 +179,20 @@ export function ReadersTable() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: editing.name,
-          location: editing.location,
-          isActive: editing.isActive,
-          institutionId: editing.institutionId, // for backward compatibility, remove in future
+          location: editing.location ?? '',
+          institutionId: editing.institutionId ?? '',
+          FirmwareVersion: editing.firmwareVersion ?? '',
+          CpuTemp: 0,
+          MemoryUsageMb: 0,
         }),
       })
       if (res.ok) {
         clientCache.del('readers')
         setDialogOpen(false)
         await fetchReaders(true)
+      } else {
+        const data = await res.json().catch(() => ({}))
+        setSaveError(data.message ?? 'Error al guardar el dispositivo')
       }
     } finally {
       setSaving(false)
@@ -375,27 +411,36 @@ export function ReadersTable() {
               />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="reader-name">Institution ID</Label>
-              <Input
-                id="institution-id"
-                value={editing.name}
-                onChange={(e) => setEditing({ ...editing, institutionId: e.target.value })}
-                placeholder="Institution ID"
-              />
+              <Label htmlFor="institution-id">Institution *</Label>
+              <Select
+                value={editing.institutionId ?? ''}
+                onValueChange={(v) => setEditing({ ...editing, institutionId: v ?? undefined })}
+              >
+                <SelectTrigger id="institution-id">
+                  <SelectValue placeholder="Select institution…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {institutions.map((inst) => (
+                    <SelectItem key={inst.id} value={inst.id}>
+                      {inst.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div className="flex items-center gap-2">
-              <input
-                id="reader-active"
-                type="checkbox"
-                checked={editing.isActive ?? true}
-                onChange={(e) => setEditing({ ...editing, isActive: e.target.checked })}
-                className="accent-teal cursor-pointer"
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="reader-firmware">Firmware Version</Label>
+              <Input
+                id="reader-firmware"
+                value={editing.firmwareVersion ?? ''}
+                onChange={(e) => setEditing({ ...editing, firmwareVersion: e.target.value })}
+                placeholder="1.0.0"
               />
-              <Label htmlFor="reader-active" className="cursor-pointer">
-                Active
-              </Label>
             </div>
           </div>
+          {saveError && (
+            <p className="text-sm text-destructive px-1">{saveError}</p>
+          )}
           <DialogFooter>
             <DialogClose render={<Button variant="outline" className="cursor-pointer" />}>
               Cancel
@@ -403,7 +448,7 @@ export function ReadersTable() {
             <Button
               className="cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-transform duration-150 ease-out"
               onClick={handleSave}
-              disabled={saving || !editing.name.trim()}
+              disabled={saving || !editing.name.trim() || !editing.institutionId?.trim()}
             >
               {saving ? 'Saving…' : editing.id ? 'Update' : 'Create'}
             </Button>

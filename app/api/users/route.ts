@@ -25,8 +25,15 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify(body),
     })
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}))
-      return NextResponse.json({ message: data.message ?? 'Failed to create user' }, { status: res.status })
+      const text = await res.text().catch(() => '')
+      let message = 'Failed to create user'
+      try {
+        const data = JSON.parse(text)
+        message = data.message ?? message
+      } catch {
+        if (text) message = text
+      }
+      return NextResponse.json({ message }, { status: res.status })
     }
     return NextResponse.json(await res.json(), { status: 201 })
   } catch (err) {

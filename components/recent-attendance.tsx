@@ -1,9 +1,15 @@
 'use client'
 
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import gsap from 'gsap'
 import { useGSAP } from '@gsap/react'
-import { ClockIcon } from 'lucide-react'
+import {
+  ClockIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ChevronsLeftIcon,
+  ChevronsRightIcon,
+} from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -13,9 +19,12 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { DURATION, EASE, STAGGER, prefersReducedMotion } from '@/lib/animations'
 
 gsap.registerPlugin(useGSAP)
+
+const PAGE_SIZE = 5
 
 interface AttendanceRecord {
   id: string
@@ -32,6 +41,10 @@ interface RecentAttendanceProps {
 
 export function RecentAttendance({ records }: RecentAttendanceProps) {
   const container = useRef<HTMLDivElement>(null)
+  const [page, setPage] = useState(1)
+
+  const totalPages = Math.max(1, Math.ceil(records.length / PAGE_SIZE))
+  const pageRecords = records.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   useGSAP(
     () => {
@@ -63,7 +76,7 @@ export function RecentAttendance({ records }: RecentAttendanceProps) {
         )
       }
     },
-    { scope: container },
+    { scope: container, dependencies: [page] },
   )
 
   return (
@@ -96,38 +109,64 @@ export function RecentAttendance({ records }: RecentAttendanceProps) {
               </p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent border-border/50">
-                  <TableHead className="text-xs uppercase tracking-wider">Employee</TableHead>
-                  <TableHead className="text-xs uppercase tracking-wider">Reader</TableHead>
-                  <TableHead className="text-xs uppercase tracking-wider text-right">Time</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {records.map((record) => (
-                  <TableRow
-                    key={record.id}
-                    data-attendance-row
-                    className="border-border/40 transition-colors duration-150 ease-out hover:bg-secondary/40"
-                  >
-                    <TableCell className="font-medium">
-                      {record.employeeName ?? record.userName ?? '—'}
-                    </TableCell>
-                    <TableCell>
-                      <span className="inline-flex items-center rounded-md bg-sage/30 px-2 py-0.5 text-xs font-medium text-forest dark:bg-sage/15 dark:text-sage">
-                        {record.readerName ?? '—'}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right text-sm text-muted-foreground tabular-nums">
-                      {record.timestamp ?? record.createdAt
-                        ? new Date(record.timestamp ?? record.createdAt!).toLocaleString()
-                        : '—'}
-                    </TableCell>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent border-border/50">
+                    <TableHead className="text-xs uppercase tracking-wider">Employee</TableHead>
+                    <TableHead className="text-xs uppercase tracking-wider">Reader</TableHead>
+                    <TableHead className="text-xs uppercase tracking-wider text-right">Time</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {pageRecords.map((record) => (
+                    <TableRow
+                      key={record.id}
+                      data-attendance-row
+                      className="border-border/40 transition-colors duration-150 ease-out hover:bg-secondary/40"
+                    >
+                      <TableCell className="font-medium">
+                        {record.employeeName ?? record.userName ?? '—'}
+                      </TableCell>
+                      <TableCell>
+                        <span className="inline-flex items-center rounded-md bg-sage/30 px-2 py-0.5 text-xs font-medium text-forest dark:bg-sage/15 dark:text-sage">
+                          {record.readerName ?? '—'}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right text-sm text-muted-foreground tabular-nums">
+                        {record.timestamp ?? record.createdAt
+                          ? new Date(record.timestamp ?? record.createdAt!).toLocaleString()
+                          : '—'}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-4 py-3 border-t border-border/40">
+                  <p className="hidden text-sm text-muted-foreground lg:block tabular-nums">
+                    {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, records.length)} of {records.length}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">Page {page} of {totalPages}</span>
+                    <div className="flex items-center gap-1">
+                      <Button variant="outline" size="icon" className="hidden size-8 lg:flex cursor-pointer" disabled={page === 1} onClick={() => setPage(1)}>
+                        <span className="sr-only">First page</span><ChevronsLeftIcon />
+                      </Button>
+                      <Button variant="outline" size="icon" className="size-8 cursor-pointer" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
+                        <span className="sr-only">Previous page</span><ChevronLeftIcon />
+                      </Button>
+                      <Button variant="outline" size="icon" className="size-8 cursor-pointer" disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>
+                        <span className="sr-only">Next page</span><ChevronRightIcon />
+                      </Button>
+                      <Button variant="outline" size="icon" className="hidden size-8 lg:flex cursor-pointer" disabled={page === totalPages} onClick={() => setPage(totalPages)}>
+                        <span className="sr-only">Last page</span><ChevronsRightIcon />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
