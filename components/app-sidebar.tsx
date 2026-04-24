@@ -15,6 +15,7 @@ import {
   Settings2Icon,
   CalendarIcon,
   CreditCardIcon,
+  BuildingIcon,
   type LucideIcon,
 } from 'lucide-react'
 import { Role } from '@/lib/roles'
@@ -53,9 +54,10 @@ const navItems: NavItem[] = [
   { title: 'Faltas & Clases', href: '/dashboard',           icon: ClockIcon,           roles: STUDENT_ROLES },
   { title: 'Calendar',       href: '/dashboard/calendar',   icon: CalendarIcon,        roles: STAFF_ROLES },
   { title: 'Attendance',     href: '/dashboard/attendance', icon: ClockIcon,           roles: ADMIN_ROLES },
-  { title: 'Readers',        href: '/dashboard/readers',    icon: CpuIcon,             roles: ADMIN_ROLES },
-  { title: 'Users',          href: '/dashboard/users',      icon: UsersIcon,           roles: ADMIN_ROLES },
-  { title: 'NFC',            href: '/dashboard/nfc',        icon: CreditCardIcon,      roles: ADMIN_ROLES },
+  { title: 'Readers',        href: '/dashboard/readers',      icon: CpuIcon,         roles: ADMIN_ROLES },
+  { title: 'Users',          href: '/dashboard/users',        icon: UsersIcon,       roles: ADMIN_ROLES },
+  { title: 'Institutions',   href: '/dashboard/institutions', icon: BuildingIcon,    roles: ADMIN_ROLES },
+  { title: 'NFC',            href: '/dashboard/nfc',          icon: CreditCardIcon,  roles: ADMIN_ROLES },
 ]
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {

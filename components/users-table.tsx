@@ -39,13 +39,20 @@ import { number } from 'zod'
 
 gsap.registerPlugin(useGSAP)
 
+interface Institution {
+  id: string
+  name: string
+}
+
 interface User {
   id: string
+  firstName?: string
   name: string
   lastName?: string
   email: string
   role?: string
   password?: string
+  institutionId?: string
 }
 
 const ROLES: Record<string, string> = {
@@ -55,7 +62,7 @@ const ROLES: Record<string, string> = {
   '3': 'Student',
 }
 
-const EMPTY: User = { id: '', name: '', lastName: '', email: '', role: '3', password: '' }
+const EMPTY: User = { id: '', name: '', lastName: '', email: '', role: '3', password: '', institutionId: '' }
 const PAGE_SIZE = 10
 
 const roleStyles: Record<string, string> = {
@@ -90,8 +97,22 @@ export function UsersTable() {
   const [confirmDelete, setConfirmDelete] = useState<User | null>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [institutions, setInstitutions] = useState<Institution[]>([])
 
   useEffect(() => { setPage(1) }, [users])
+
+  useEffect(() => {
+    const cached = clientCache.get<Institution[]>('institutions')
+    if (cached) { setInstitutions(cached); return }
+    fetch(API.institutions)
+      .then((r) => r.json())
+      .then((data) => {
+        const list: Institution[] = Array.isArray(data) ? data : data.institutions ?? []
+        clientCache.set('institutions', list)
+        setInstitutions(list)
+      })
+      .catch(() => {})
+  }, [])
 
   const fetchUsers = useCallback(async (force = false) => {
     if (!force) {
@@ -160,7 +181,7 @@ export function UsersTable() {
   }
 
   function openEdit(user: User) {
-    setEditing({ ...user, role: String(user.role ?? '3'), password: '' })
+    setEditing({ ...user, role: String(user.role ?? '3'), password: '', institutionId: '' })
     setShowPassword(false)
     setSaveError(null)
     setDialogOpen(true)
@@ -185,14 +206,28 @@ export function UsersTable() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
-      if (res.ok) {
-        clientCache.del('users')
-        setDialogOpen(false)
-        await fetchUsers(true)
-      } else {
+      if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         setSaveError(data.message ?? 'Error al guardar el usuario')
+        return
       }
+
+      // Assign to institution if selected (only on create)
+      if (isNew && editing.institutionId) {
+        const body = await res.json().catch(() => ({}))
+        const userId: string | undefined = body.userId
+        if (userId) {
+          await fetch(`${API.institutions}/${editing.institutionId}/users`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId }),
+          })
+        }
+      }
+
+      clientCache.del('users')
+      setDialogOpen(false)
+      await fetchUsers(true)
     } finally {
       setSaving(false)
     }
@@ -405,6 +440,30 @@ export function UsersTable() {
                 </SelectContent>
               </Select>
             </div>
+            {!editing.id && (
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="user-institution">Institution</Label>
+                <Select
+                  value={editing.institutionId ?? ''}
+                  onValueChange={(v) => setEditing({ ...editing, institutionId: v ?? undefined })}
+                >
+                  <SelectTrigger id="user-institution">
+                    <SelectValue placeholder="Select institution (optional)">
+                      {editing.institutionId
+                        ? institutions.find((i) => i.id === editing.institutionId)?.name ?? 'Select institution (optional)'
+                        : null}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {institutions.map((inst) => (
+                      <SelectItem key={inst.id} value={inst.id}>
+                        {inst.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="flex flex-col gap-2">
               <Label htmlFor="user-password">
                 {editing.id ? 'New Password (leave blank to keep current)' : 'Password *'}
