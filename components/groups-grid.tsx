@@ -133,11 +133,14 @@ export function GroupsGrid() {
   // ─── Data loading ────────────────────────────────────────────────────────────
 
   const fetchGroups = useCallback(async (force = false) => {
-    if (!force) {
-      const cached = clientCache.get<Group[]>('groups')
-      if (cached) { setGroups(cached); setLoading(false); return }
+    const cached = clientCache.get<Group[]>('groups')
+    if (cached && !force) {
+      setGroups(cached)
+      setLoading(false)
+    } else if (!cached) {
+      setLoading(true)
     }
-    setLoading(true)
+    
     try {
       const res = await fetch(`${API.groups}?page=1&limit=1000`)
       if (!res.ok) return
@@ -154,7 +157,7 @@ export function GroupsGrid() {
 
   useEffect(() => {
     const cached = clientCache.get<Institution[]>('institutions')
-    if (cached) { setInstitutions(cached); return }
+    if (cached) { setInstitutions(cached) }
     fetch(API.institutions)
       .then(r => r.json())
       .then(data => {
@@ -167,7 +170,7 @@ export function GroupsGrid() {
 
   useEffect(() => {
     const cached = clientCache.get<UserOption[]>('users')
-    if (cached) { setUsers(cached); return }
+    if (cached) { setUsers(cached) }
     fetch(API.users)
       .then(r => r.json())
       .then(data => {
@@ -235,7 +238,7 @@ export function GroupsGrid() {
       const method = isNew ? 'POST' : 'PUT'
       const payload = isNew
         ? { name: editing.name, level: editing.level ?? '', institutionId: editing.institutionId, professorId: editing.professorId }
-        : { name: editing.name, level: editing.level ?? '', professorId: editing.professorId }
+        : { name: editing.name, level: editing.level ?? '', institutionId: editing.institutionId, professorId: editing.professorId }
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },

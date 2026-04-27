@@ -161,11 +161,13 @@ export function NfcTable() {
   useEffect(() => { setPage(1) }, [cards])
 
   const fetchCards = useCallback(async (force = false) => {
-    if (!force) {
-      const cached = clientCache.get<NfcCard[]>('nfc-cards')
-      if (cached) { setCards(cached); setLoading(false); return }
+    const cached = clientCache.get<NfcCard[]>('nfc-cards')
+    if (cached && !force) {
+      setCards(cached)
+      setLoading(false)
+    } else if (!cached) {
+      setLoading(true)
     }
-    setLoading(true)
     try {
       const res = await fetch(API.nfc)
       if (res.ok) {
@@ -189,7 +191,7 @@ export function NfcTable() {
       if (res.ok) {
         const data = await res.json()
         const list: UserOption[] = Array.isArray(data) ? data : data.items ?? data.users ?? []
-        setStudents(students)
+        setStudents(list)
       } else {
         setStudents([])
       }

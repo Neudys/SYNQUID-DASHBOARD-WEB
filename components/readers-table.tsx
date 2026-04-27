@@ -86,7 +86,7 @@ export function ReadersTable() {
 
   useEffect(() => {
     const cached = clientCache.get<Institution[]>('institutions')
-    if (cached) { setInstitutions(cached); return }
+    if (cached) { setInstitutions(cached) }
     fetch(API.institutions)
       .then((r) => r.json())
       .then((data) => {
@@ -98,11 +98,13 @@ export function ReadersTable() {
   }, [])
 
   const fetchReaders = useCallback(async (force = false) => {
-    if (!force) {
-      const cached = clientCache.get<Reader[]>('readers')
-      if (cached) { setReaders(cached); setLoading(false); return }
+    const cached = clientCache.get<Reader[]>('readers')
+    if (cached && !force) {
+      setReaders(cached)
+      setLoading(false)
+    } else if (!cached) {
+      setLoading(true)
     }
-    setLoading(true)
     try {
       const res = await fetch(API.readers)
       const data = await res.json()

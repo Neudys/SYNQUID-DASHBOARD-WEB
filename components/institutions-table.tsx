@@ -43,10 +43,14 @@ gsap.registerPlugin(useGSAP)
 interface Institution {
   id: string
   name: string
+  address?: string
+  phone?: string
+  contactEmail?: string
+  timezone?: string
   createdAt?: string
 }
 
-const EMPTY: Institution = { id: '', name: '' }
+const EMPTY: Institution = { id: '', name: '', address: '', phone: '', contactEmail: '', timezone: 'Europe/Madrid' }
 const PAGE_SIZE = 10
 
 export function InstitutionsTable() {
@@ -64,11 +68,13 @@ export function InstitutionsTable() {
   useEffect(() => { setPage(1) }, [institutions])
 
   const fetchInstitutions = useCallback(async (force = false) => {
-    if (!force) {
-      const cached = clientCache.get<Institution[]>('institutions')
-      if (cached) { setInstitutions(cached); setLoading(false); return }
+    const cached = clientCache.get<Institution[]>('institutions')
+    if (cached && !force) {
+      setInstitutions(cached)
+      setLoading(false)
+    } else if (!cached) {
+      setLoading(true)
     }
-    setLoading(true)
     try {
       const res = await fetch(API.institutions)
       if (!res.ok) return
@@ -129,7 +135,13 @@ export function InstitutionsTable() {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: editing.name }),
+        body: JSON.stringify({
+          name: editing.name,
+          address: editing.address ?? '',
+          phone: editing.phone ?? '',
+          contactEmail: editing.contactEmail ?? '',
+          timezone: editing.timezone ?? 'Europe/Madrid',
+        }),
       })
       if (res.ok) {
         clientCache.del('institutions')
@@ -190,7 +202,8 @@ export function InstitutionsTable() {
           <TableHeader>
             <TableRow className="hover:bg-transparent border-border/50">
               <TableHead className="text-xs uppercase tracking-wider">Name</TableHead>
-              <TableHead className="text-xs uppercase tracking-wider hidden lg:table-cell">Created</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider hidden md:table-cell">Email</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider hidden lg:table-cell">Timezone</TableHead>
               <TableHead className="text-xs uppercase tracking-wider text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -199,6 +212,7 @@ export function InstitutionsTable() {
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i} className="border-border/40">
                   <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                  <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-32" /></TableCell>
                   <TableCell className="hidden lg:table-cell"><Skeleton className="h-4 w-28" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
                 </TableRow>
@@ -213,8 +227,11 @@ export function InstitutionsTable() {
               pageInstitutions.map((inst) => (
                 <TableRow key={inst.id} data-row className="border-border/40 transition-colors duration-150 hover:bg-secondary/40">
                   <TableCell className="font-medium">{inst.name}</TableCell>
+                  <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
+                    {inst.contactEmail || '—'}
+                  </TableCell>
                   <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                    {inst.createdAt ? new Date(inst.createdAt).toLocaleDateString() : '—'}
+                    {inst.timezone || '—'}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-end gap-1">
@@ -285,6 +302,43 @@ export function InstitutionsTable() {
                 value={editing.name}
                 onChange={(e) => setEditing({ ...editing, name: e.target.value })}
                 placeholder="Escuela Nacional"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="inst-address">Address</Label>
+              <Input
+                id="inst-address"
+                value={editing.address ?? ''}
+                onChange={(e) => setEditing({ ...editing, address: e.target.value })}
+                placeholder="Carrer Exemple 123"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="inst-phone">Phone</Label>
+              <Input
+                id="inst-phone"
+                value={editing.phone ?? ''}
+                onChange={(e) => setEditing({ ...editing, phone: e.target.value })}
+                placeholder="+34 934 567 890"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="inst-email">Contact Email</Label>
+              <Input
+                id="inst-email"
+                type="email"
+                value={editing.contactEmail ?? ''}
+                onChange={(e) => setEditing({ ...editing, contactEmail: e.target.value })}
+                placeholder="admin@school.edu"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="inst-timezone">Timezone</Label>
+              <Input
+                id="inst-timezone"
+                value={editing.timezone ?? ''}
+                onChange={(e) => setEditing({ ...editing, timezone: e.target.value })}
+                placeholder="Europe/Madrid"
               />
             </div>
           </div>

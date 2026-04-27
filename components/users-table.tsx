@@ -103,7 +103,7 @@ export function UsersTable() {
 
   useEffect(() => {
     const cached = clientCache.get<Institution[]>('institutions')
-    if (cached) { setInstitutions(cached); return }
+    if (cached) { setInstitutions(cached) }
     fetch(API.institutions)
       .then((r) => r.json())
       .then((data) => {
@@ -115,11 +115,13 @@ export function UsersTable() {
   }, [])
 
   const fetchUsers = useCallback(async (force = false) => {
-    if (!force) {
-      const cached = clientCache.get<User[]>('users')
-      if (cached) { setUsers(cached); setLoading(false); return }
+    const cached = clientCache.get<User[]>('users')
+    if (cached && !force) {
+      setUsers(cached)
+      setLoading(false)
+    } else if (!cached) {
+      setLoading(true)
     }
-    setLoading(true)
     try {
       const res = await fetch(API.users)
       if (!res.ok) return
