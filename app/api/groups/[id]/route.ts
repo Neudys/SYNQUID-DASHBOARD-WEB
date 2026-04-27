@@ -34,16 +34,15 @@ export async function PUT(
     })
     if (!res.ok) {
       const text = await res.text().catch(() => '')
-      let message = 'Failed to update group'
-      try { const d = JSON.parse(text); message = d.message ?? message } catch { if (text) message = text }
-      return NextResponse.json({ message }, { status: res.status })
+      let data: Record<string, unknown> = {}
+      try { if (text) data = JSON.parse(text) } catch { /* raw text */ }
+      return NextResponse.json({ message: 'Failed to update group', backendError: data || text }, { status: res.status })
     }
     const text = await res.text().catch(() => '')
     let data = {}
     try { if (text) data = JSON.parse(text) } catch { /* ok */ }
     return NextResponse.json(data)
   } catch (err) {
-    console.error('[api/groups/[id] PUT]', err)
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }

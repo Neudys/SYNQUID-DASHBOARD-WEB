@@ -236,9 +236,12 @@ export function GroupsGrid() {
       const isNew = !editing.id
       const url = isNew ? API.groups : `${API.groups}/${editing.id}`
       const method = isNew ? 'POST' : 'PUT'
-      const payload = isNew
-        ? { name: editing.name, level: editing.level ?? '', institutionId: editing.institutionId, professorId: editing.professorId }
-        : { name: editing.name, level: editing.level ?? '', institutionId: editing.institutionId, professorId: editing.professorId }
+      const payload = {
+        name: editing.name,
+        level: editing.level || null,
+        institutionId: editing.institutionId,
+        professorId: editing.professorId,
+      }
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -249,7 +252,9 @@ export function GroupsGrid() {
         setFormOpen(false)
         await fetchGroups(true)
       } else {
-        const data = await res.json().catch(() => ({}))
+        const text = await res.text().catch(() => '')
+        let data: { message?: string; backendError?: unknown } = {}
+        try { if (text) data = JSON.parse(text) } catch { if (text) data = { message: text } }
         setSaveError(data.message ?? 'Error al guardar el grupo')
       }
     } finally {
@@ -444,7 +449,7 @@ export function GroupsGrid() {
                   )}
                   <span className="flex items-center gap-1.5">
                     <UsersIcon className="size-3 shrink-0" />
-                    {group.memberCount ?? '—'} members
+                    {group.memberCount ?? '—'} estudiantes
                   </span>
                 </div>
 
@@ -585,7 +590,7 @@ export function GroupsGrid() {
             <Button
               className="cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-transform duration-150"
               onClick={handleSave}
-              disabled={saving || !editing.name?.trim() || (!editing.id && !editing.institutionId)}
+              disabled={saving || !editing.name?.trim() || !editing.professorId || (!editing.id && !editing.institutionId)}
             >
               {saving ? 'Saving…' : editing.id ? 'Update' : 'Create'}
             </Button>
@@ -599,7 +604,12 @@ export function GroupsGrid() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UsersIcon className="size-4" />
-              {selectedGroup?.name} — Members
+              {selectedGroup?.name}
+              {!membersLoading && (
+                <span className="ml-1 text-sm font-normal text-muted-foreground">
+                  — {members.length} estudiante{members.length !== 1 ? 's' : ''}
+                </span>
+              )}
             </DialogTitle>
           </DialogHeader>
 
