@@ -26,6 +26,7 @@ export const BACKEND = {
     delete:   (id: string) => `/api/User/${id}`,
     setRole:  (id: string) => `/api/User/${id}/role`,
     nfc:      (id: string) => `/api/User/${id}/nfc`,
+    groups:   (id: string) => `/api/User/${id}/groups`,
   },
   attendance: {
     /** Primary paged history — used as the list endpoint */
@@ -95,6 +96,7 @@ export const BACKEND = {
     delete:        (id: string) => `/api/Group/${id}`,
     members:       (id: string) => `/api/Group/${id}/members`,
     removeMember:  (id: string, userId: string) => `/api/Group/${id}/members/${userId}`,
+    schedules:     (id: string) => `/api/Group/${id}/schedules`,
   },
   teacher: {
     myGroups:      '/api/Teacher/myGroups',
@@ -125,4 +127,8 @@ export const API = {
   dashboard:  '/api/dashboard/summary',
   nfc:        '/api/nfc',
   nfcAssign:  '/api/nfc/assign',
+  student: {
+    myGroups: '/api/student/myGroups',
+  },
+  groupsSchedules: (id: string) => `/api/groups/${id}/schedules`,
 } as const

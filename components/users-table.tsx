@@ -62,7 +62,7 @@ const ROLES: Record<string, string> = {
   '3': 'Student',
 }
 
-const EMPTY: User = { id: '', name: '', lastName: '', email: '', role: '3', password: '', institutionId: '' }
+const EMPTY: User = { id: '', firstName: '', name: '', lastName: '', email: '', role: '3', password: '', institutionId: '' }
 const PAGE_SIZE = 10
 
 const roleStyles: Record<string, string> = {
@@ -183,7 +183,14 @@ export function UsersTable() {
   }
 
   function openEdit(user: User) {
-    setEditing({ ...user, role: String(user.role ?? '3'), password: '', institutionId: '' })
+    setEditing({ 
+      ...user, 
+      role: String(user.role ?? '3'), 
+      password: '', 
+      institutionId: '',
+      firstName: user.firstName ?? user.name ?? '',
+      lastName: user.lastName ?? ''
+    })
     setShowPassword(false)
     setSaveError(null)
     setDialogOpen(true)
@@ -197,7 +204,8 @@ export function UsersTable() {
       const url = isNew ? API.users : `${API.users}/${editing.id}`
       const method = isNew ? 'POST' : 'PUT'
       const payload: Record<string, unknown> = {
-        name: editing.name,
+        firstName: editing.firstName || editing.name || '',
+        name: editing.firstName || editing.name || '',
         lastName: editing.lastName ?? '',
         email: editing.email,
         rol: Number(editing.role ?? 3),
@@ -398,11 +406,11 @@ export function UsersTable() {
           </DialogHeader>
           <div className="flex flex-col gap-4 py-2">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="user-name">Name *</Label>
+              <Label htmlFor="user-name">First Name *</Label>
               <Input
                 id="user-name"
-                value={editing.name}
-                onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                value={editing.firstName ?? editing.name ?? ''}
+                onChange={(e) => setEditing({ ...editing, firstName: e.target.value, name: e.target.value })}
                 placeholder="Jane"
               />
             </div>
@@ -503,7 +511,7 @@ export function UsersTable() {
             <Button
               className="cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-transform duration-150 ease-out"
               onClick={handleSave}
-              disabled={saving || !editing.name?.trim() || !editing.email?.trim() || (!editing.id && !editing.password?.trim())}
+              disabled={saving || !(editing.firstName?.trim() || editing.name?.trim()) || !editing.email?.trim() || (!editing.id && !editing.password?.trim())}
             >
               {saving ? 'Saving…' : editing.id ? 'Update' : 'Create'}
             </Button>

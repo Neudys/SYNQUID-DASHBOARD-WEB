@@ -541,30 +541,28 @@ export function GroupsGrid() {
                 placeholder="5th grade"
               />
             </div>
-            {!editing.id && (
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="group-institution">Institution *</Label>
-                <Select
-                  value={editing.institutionId ?? ''}
-                  onValueChange={v => setEditing({ ...editing, institutionId: v ?? undefined })}
-                >
-                  <SelectTrigger id="group-institution">
-                    <SelectValue placeholder="Select institution…">
-                      {editing.institutionId
-                        ? institutions.find(i => i.id === editing.institutionId)?.name ?? 'Select institution…'
-                        : null}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {institutions.map(inst => (
-                      <SelectItem key={inst.id} value={inst.id}>{inst.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
             <div className="flex flex-col gap-2">
-              <Label htmlFor="group-professor">Professor</Label>
+              <Label htmlFor="group-institution">Institution *</Label>
+              <Select
+                value={editing.institutionId ?? ''}
+                onValueChange={v => setEditing({ ...editing, institutionId: v ?? undefined })}
+              >
+                <SelectTrigger id="group-institution">
+                  <SelectValue placeholder="Select institution…">
+                    {editing.institutionId
+                      ? institutions.find(i => i.id === editing.institutionId)?.name ?? 'Select institution…'
+                      : null}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {institutions.map(inst => (
+                    <SelectItem key={inst.id} value={inst.id}>{inst.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="group-professor">Professor *</Label>
               <Select
                 value={editing.professorId ?? ''}
                 onValueChange={v => setEditing({ ...editing, professorId: v ?? undefined })}
