@@ -90,7 +90,7 @@ function sameDay(a: Date, b: Date): boolean {
 }
 
 function formatLongDate(d: Date): string {
-  return d.toLocaleDateString('es', {
+  return d.toLocaleDateString('en', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
@@ -124,7 +124,9 @@ export function TeacherCalendar({ groups }: Props) {
     return d
   }, [date])
 
-  const isFutureDate = date && today ? date.getTime() > today.getTime() : false
+  const isFutureDate = date && today
+    ? new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime() > today.getTime()
+    : false
 
   // Carga alumnos + DailyAttendance del dÃ­a en paralelo y construye el roster
   const loadRoster = useCallback(async () => {
@@ -221,7 +223,7 @@ export function TeacherCalendar({ groups }: Props) {
   if (groups.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-border/60 bg-muted/30 px-4 py-8 text-center text-sm text-muted-foreground">
-        No tienes clases asignadas aÃºn.
+        You don't have any classes assigned yet.
       </div>
     )
   }
@@ -230,7 +232,7 @@ export function TeacherCalendar({ groups }: Props) {
     return (
       <div className="flex items-center justify-center gap-2 rounded-lg border border-border/60 bg-card/60 px-4 py-12 text-sm text-muted-foreground">
         <Loader2Icon className="size-4 animate-spin" />
-        Cargando calendarioâ€¦
+        Loading calendar...
       </div>
     )
   }
@@ -270,7 +272,7 @@ export function TeacherCalendar({ groups }: Props) {
             className="cursor-pointer"
           >
             <ListIcon className="size-4" />
-            DÃ­a
+            Day
           </Button>
           <Button
             variant={view === 'month' ? 'default' : 'ghost'}
@@ -366,7 +368,7 @@ function DayView({
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold capitalize text-foreground">{formatLongDate(date)}</h2>
           <p className="text-xs text-muted-foreground">
-            {sameDay(date, today) ? 'Hoy' : isFutureDate ? 'Fecha futura (solo lectura)' : 'DÃ­a pasado'}
+            {sameDay(date, today) ? 'Today' : isFutureDate ? 'Future (read-only)' : 'Past day'}
           </p>
         </div>
         <div className="flex items-center gap-1">
@@ -410,7 +412,7 @@ function DayView({
         {loading ? (
           <div className="flex items-center justify-center gap-2 px-6 py-12 text-sm text-muted-foreground">
             <Loader2Icon className="size-4 animate-spin" />
-            Cargando asistenciaâ€¦
+            Loading attendance...
           </div>
         ) : roster.length === 0 ? (
           <div className="px-6 py-12 text-center text-sm text-muted-foreground">
@@ -524,7 +526,7 @@ function MonthView({
   for (let day = 1; day <= daysInMonth; day++) cells.push({ day, date: new Date(year, month, day) })
   while (cells.length % 7 !== 0) cells.push(null)
 
-  const monthLabel = date.toLocaleDateString('es', { month: 'long', year: 'numeric' })
+  const monthLabel = date.toLocaleDateString('en', { month: 'long', year: 'numeric' })
   const isNextMonthFuture =
     new Date(year, month + 1, 1).getTime() >
     new Date(today.getFullYear(), today.getMonth(), 1).getTime()
@@ -537,19 +539,19 @@ function MonthView({
         </div>
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold capitalize text-foreground">{monthLabel}</h2>
-          <p className="text-xs text-muted-foreground">Haz clic en un dÃ­a para ver la asistencia</p>
+          <p className="text-xs text-muted-foreground">Click a day to see attendance</p>
         </div>
         <div className="flex items-center gap-3">
           {/* Leyenda de colores */}
           <div className="hidden sm:flex items-center gap-2 text-[10px] text-muted-foreground">
             <span className="flex items-center gap-1">
-              <span className="inline-block size-2 rounded-sm bg-teal-500/50" />â‰¥80%
+              <span className="inline-block size-2 rounded-sm bg-teal-500/50" />{'>=80%'}
             </span>
             <span className="flex items-center gap-1">
-              <span className="inline-block size-2 rounded-sm bg-amber-500/50" />â‰¥50%
+              <span className="inline-block size-2 rounded-sm bg-amber-500/50" />{'>=50%'}
             </span>
             <span className="flex items-center gap-1">
-              <span className="inline-block size-2 rounded-sm bg-destructive/40" />&lt;50%
+              <span className="inline-block size-2 rounded-sm bg-destructive/40" />{'<50%'}
             </span>
           </div>
           <div className="flex items-center gap-1">
@@ -572,12 +574,12 @@ function MonthView({
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
             <Loader2Icon className="size-4 animate-spin" />
-            Cargando mesâ€¦
+            Loading month...
           </div>
         ) : (
           <div className="grid gap-1">
             <div className="grid grid-cols-7 gap-1 pb-2">
-              {['Dom', 'Lun', 'Mar', 'MiÃ©', 'Jue', 'Vie', 'SÃ¡b'].map(d => (
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
                 <div
                   key={d}
                   className="text-center text-[10px] font-medium uppercase tracking-wider text-muted-foreground"
