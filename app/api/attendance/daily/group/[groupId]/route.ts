@@ -4,13 +4,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { backendFetch } from '@/lib/api'
 import { BACKEND } from '@/lib/endpoints'
 
-export async function GET(req: NextRequest) {
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ groupId: string }> },
+) {
   try {
+    const { groupId } = await params
     const query = req.nextUrl.searchParams.toString()
-    const path = query ? `${BACKEND.attendance.today}?${query}` : BACKEND.attendance.today
+    const base = BACKEND.attendance.dailyGroup(groupId)
+    const path = query ? `${base}?${query}` : base
     const res = await backendFetch(path)
     if (!res.ok) {
-      return NextResponse.json({ message: 'Failed to fetch today attendance' }, { status: res.status })
+      return NextResponse.json({ message: 'Failed to fetch daily attendance' }, { status: res.status })
     }
     return NextResponse.json(await res.json())
   } catch (err) {

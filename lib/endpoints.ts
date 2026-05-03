@@ -40,11 +40,14 @@ export const BACKEND = {
     check:      '/api/Attendance/check',
     register:   '/api/Attendance/Register',
     sync:       '/api/Attendance/sync',
-    manual:     '/api/Attendance/manual',
-    detail:     (id: string) => `/api/Attendance/${id}`,
-    update:     (id: string) => `/api/Attendance/${id}`,
+    manual:      '/api/Attendance/manual',
+    detail:      (id: string) => `/api/Attendance/${id}`,
+    update:      (id: string) => `/api/Attendance/${id}`,
     /** Backend currently exposes no DELETE for attendance — kept for legacy route */
-    delete:     (id: string) => `/api/Attendance/${id}`,
+    delete:      (id: string) => `/api/Attendance/${id}`,
+    /** DailyAttendance — upsert único (crea o actualiza según userId+scheduleId+date) */
+    dailyUpsert: '/api/Attendance/daily',
+    dailyGroup:  (groupId: string) => `/api/Attendance/daily/group/${groupId}`,
   },
   devices: {
     list:          '/api/Devices',
@@ -130,5 +133,7 @@ export const API = {
   student: {
     myGroups: '/api/student/myGroups',
   },
-  groupsSchedules: (id: string) => `/api/groups/${id}/schedules`,
+  groupsSchedules:       (id: string) => `/api/groups/${id}/schedules`,
+  attendanceDailyGroup: (groupId: string) => `/api/attendance/daily/group/${groupId}`,
+  attendanceDaily:      '/api/attendance/daily',
 } as const

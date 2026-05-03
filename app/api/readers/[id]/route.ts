@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic'
+﻿export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { backendFetch } from '@/lib/api'
@@ -15,7 +15,6 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     }
     return NextResponse.json(await res.json())
   } catch (err) {
-    console.error('[api/readers/:id GET]', err)
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }
@@ -34,7 +33,6 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     }
     return NextResponse.json(await res.json())
   } catch (err) {
-    console.error('[api/readers/:id PUT]', err)
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }
@@ -48,7 +46,6 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
     }
     return NextResponse.json({ ok: true })
   } catch (err) {
-    console.error('[api/readers/:id DELETE]', err)
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }

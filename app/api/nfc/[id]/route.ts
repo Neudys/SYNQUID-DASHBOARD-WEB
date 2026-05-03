@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic'
+﻿export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { backendFetch } from '@/lib/api'
@@ -24,7 +24,6 @@ export async function PUT(
     }
     return NextResponse.json(await res.json().catch(() => ({ ok: true })))
   } catch (err) {
-    console.error('[api/nfc/[id] PUT]', err)
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }
@@ -41,7 +40,6 @@ export async function DELETE(
     }
     return NextResponse.json({ ok: true })
   } catch (err) {
-    console.error('[api/nfc/[id] DELETE]', err)
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }

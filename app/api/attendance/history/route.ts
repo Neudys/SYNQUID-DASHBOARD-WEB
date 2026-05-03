@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic'
+﻿export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { backendFetch } from '@/lib/api'
@@ -12,9 +12,9 @@ export async function GET(req: NextRequest) {
     if (!res.ok) {
       return NextResponse.json({ message: 'Failed to fetch attendance history' }, { status: res.status })
     }
-    return NextResponse.json(await res.json())
+    const data = await res.json()
+    return NextResponse.json(data)
   } catch (err) {
-    console.error('[api/attendance/history]', err)
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }

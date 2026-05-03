@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation'
+﻿import { redirect } from 'next/navigation'
 import { LoginForm } from '@/components/login-form'
 import { LoginVisual } from '@/components/login-visual'
 import { getAuthToken } from '@/lib/auth'
@@ -13,7 +13,6 @@ async function isTokenValid(token: string): Promise<boolean> {
     })
     return res.ok
   } catch (err) {
-    console.error('[login/page] validateToken failed:', err)
     return false
   }
 }

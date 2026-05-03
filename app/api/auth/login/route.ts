@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic'
+﻿export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { BACKEND_BASE_URL, BACKEND } from '@/lib/endpoints'
@@ -31,14 +31,12 @@ export async function POST(req: NextRequest) {
     const token: string = (data.token ?? data.accessToken ?? data.access_token) as string
 
     if (!token) {
-      console.error('[login] no token field in response, keys:', Object.keys(data))
       return NextResponse.json({ message: 'No token received from server' }, { status: 500 })
     }
 
     await setAuthCookie(token)
     return NextResponse.json({ ok: true })
   } catch (err) {
-    console.error('[api/auth/login]', err)
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }

@@ -4,13 +4,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { backendFetch } from '@/lib/api'
 import { BACKEND } from '@/lib/endpoints'
 
-export async function POST(req: NextRequest) {
+export async function PUT(req: NextRequest) {
   try {
-    const query = req.nextUrl.searchParams.toString()
-    const path = query ? `${BACKEND.attendance.manual}?${query}` : BACKEND.attendance.manual
     const body = await req.text()
-    const res = await backendFetch(path, {
-      method: 'POST',
+    const res = await backendFetch(BACKEND.attendance.dailyUpsert, {
+      method: 'PUT',
       body: body || undefined,
     })
     const data = await res.json().catch(() => ({}))

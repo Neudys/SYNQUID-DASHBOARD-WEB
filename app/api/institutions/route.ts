@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic'
+﻿export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { backendFetch } from '@/lib/api'
@@ -12,7 +12,6 @@ export async function GET() {
     }
     return NextResponse.json(await res.json())
   } catch (err) {
-    console.error('[api/institutions GET]', err)
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }
@@ -32,7 +31,6 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json(await res.json(), { status: 201 })
   } catch (err) {
-    console.error('[api/institutions POST]', err)
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }
