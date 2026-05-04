@@ -11,7 +11,7 @@ export async function GET() {
       return NextResponse.json({ message: 'Failed to fetch institutions' }, { status: res.status })
     }
     return NextResponse.json(await res.json())
-  } catch (err) {
+  } catch {
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message }, { status: res.status })
     }
     return NextResponse.json(await res.json(), { status: 201 })
-  } catch (err) {
+  } catch {
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }

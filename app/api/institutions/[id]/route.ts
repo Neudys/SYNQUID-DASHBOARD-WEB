@@ -25,7 +25,7 @@ export async function PUT(
     let data = {}
     try { if (text) data = JSON.parse(text) } catch { /* plain text ok */ }
     return NextResponse.json(data)
-  } catch (err) {
+  } catch {
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }
@@ -44,7 +44,7 @@ export async function DELETE(
       return NextResponse.json({ message }, { status: res.status })
     }
     return new NextResponse(null, { status: 204 })
-  } catch (err) {
+  } catch {
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }

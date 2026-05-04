@@ -11,7 +11,7 @@ export async function PUT(
   try {
     const { id } = await params
     const body = await req.text()
-    const res = await backendFetch(BACKEND.attendance.dailyUpdate(id), {
+    const res = await backendFetch(BACKEND.attendance.update(id), {
       method: 'PUT',
       body: body || undefined,
     })
@@ -20,7 +20,7 @@ export async function PUT(
       return NextResponse.json(data, { status: res.status })
     }
     return NextResponse.json(data)
-  } catch (err) {
+  } catch {
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }

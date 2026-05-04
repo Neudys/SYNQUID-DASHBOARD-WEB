@@ -35,7 +35,6 @@ import { PlusIcon, PencilIcon, TrashIcon, UsersIcon, EyeIcon, EyeOffIcon, Chevro
 import { API } from '@/lib/endpoints'
 import { DURATION, EASE, STAGGER, prefersReducedMotion } from '@/lib/animations'
 import { clientCache } from '@/lib/client-cache'
-import { number } from 'zod'
 
 gsap.registerPlugin(useGSAP)
 
@@ -63,7 +62,6 @@ const ROLES: Record<string, string> = {
 }
 
 const EMPTY: User = { id: '', firstName: '', name: '', lastName: '', email: '', role: '3', password: '', institutionId: '' }
-const PAGE_SIZE = 10
 
 const roleStyles: Record<string, string> = {
   '0': 'bg-destructive/10 text-destructive',
@@ -324,7 +322,6 @@ export function UsersTable() {
               </TableRow>
             ) : (
               pageUsers.map((user) => {
-                const roleKey = user.role ?? 'employee'
                 return (
                   <TableRow
                     key={user.id}

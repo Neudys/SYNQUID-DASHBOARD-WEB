@@ -1,4 +1,4 @@
-import { getCurrentUser, requireAuth, Role } from '@/lib/auth'
+import { getCurrentUser, requireAuth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { AppSidebar } from '@/components/app-sidebar'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'

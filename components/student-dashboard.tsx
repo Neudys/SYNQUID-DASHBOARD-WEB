@@ -163,14 +163,14 @@ export function StudentDashboard() {
                   } else {
                     newSchedulesMap[group.groupId] = []
                   }
-                } catch (err) {
+                } catch {
                   newSchedulesMap[group.groupId] = []
                 }
               }),
             )
             setSchedulesMap(newSchedulesMap)
           }
-        } catch (err) {
+        } catch {
         } finally {
           setLoadingClases(false)
           setClasesFetched(true)

@@ -15,7 +15,7 @@ export async function DELETE(
       return NextResponse.json({ message: 'Failed to delete attendance record' }, { status: res.status })
     }
     return NextResponse.json({ ok: true })
-  } catch (err) {
+  } catch {
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }
@@ -36,7 +36,7 @@ export async function PUT(
       return NextResponse.json(data, { status: res.status })
     }
     return NextResponse.json(data)
-  } catch (err) {
+  } catch {
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }

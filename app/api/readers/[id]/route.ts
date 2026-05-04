@@ -14,7 +14,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       return NextResponse.json({ message: 'Reader not found' }, { status: res.status })
     }
     return NextResponse.json(await res.json())
-  } catch (err) {
+  } catch {
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }
@@ -32,7 +32,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
       return NextResponse.json({ message: data.message ?? 'Failed to update reader' }, { status: res.status })
     }
     return NextResponse.json(await res.json())
-  } catch (err) {
+  } catch {
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }
@@ -45,7 +45,7 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
       return NextResponse.json({ message: 'Failed to delete reader' }, { status: res.status })
     }
     return NextResponse.json({ ok: true })
-  } catch (err) {
+  } catch {
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }

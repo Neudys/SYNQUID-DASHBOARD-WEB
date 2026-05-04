@@ -11,7 +11,7 @@ export async function GET() {
       return NextResponse.json({ message: 'Not authenticated' }, { status: res.status })
     }
     return NextResponse.json(await res.json())
-  } catch (err) {
+  } catch {
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }

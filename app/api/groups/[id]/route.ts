@@ -15,7 +15,7 @@ export async function GET(
       return NextResponse.json({ message: 'Group not found' }, { status: res.status })
     }
     return NextResponse.json(await res.json())
-  } catch (err) {
+  } catch {
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }
@@ -41,7 +41,7 @@ export async function PUT(
     let data = {}
     try { if (text) data = JSON.parse(text) } catch { /* ok */ }
     return NextResponse.json(data)
-  } catch (err) {
+  } catch {
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }
@@ -60,7 +60,7 @@ export async function DELETE(
       return NextResponse.json({ message }, { status: res.status })
     }
     return new NextResponse(null, { status: 204 })
-  } catch (err) {
+  } catch {
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }

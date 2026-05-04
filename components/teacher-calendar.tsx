@@ -159,7 +159,7 @@ export function TeacherCalendar({ groups }: Props) {
           isManuallyModified: !!att?.modifiedById,
         }
       }))
-    } catch (err) {
+    } catch {
       setRoster([])
     } finally {
       setLoading(false)
@@ -183,7 +183,7 @@ export function TeacherCalendar({ groups }: Props) {
         : Array.isArray(body?.data) ? body.data
         : Array.isArray(body) ? body : [],
       )
-    } catch (err) {
+    } catch {
       setMonthRecords([])
     } finally {
       setLoading(false)
@@ -202,7 +202,7 @@ export function TeacherCalendar({ groups }: Props) {
     setRoster(prev => prev.map(r => r.userId === entry.userId ? { ...r, status: newStatus } : r))
 
     try {
-      const res = await fetch('/api/attendance/daily', {
+      await fetch('/api/attendance/daily', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -213,7 +213,7 @@ export function TeacherCalendar({ groups }: Props) {
         }),
       })
       await loadRoster()
-    } catch (err) {
+    } catch {
       await loadRoster()
     } finally {
       setUpdating(null)
@@ -223,7 +223,7 @@ export function TeacherCalendar({ groups }: Props) {
   if (groups.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-border/60 bg-muted/30 px-4 py-8 text-center text-sm text-muted-foreground">
-        You don't have any classes assigned yet.
+        {"You don't have any classes assigned yet."}
       </div>
     )
   }

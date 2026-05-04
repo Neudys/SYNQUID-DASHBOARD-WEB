@@ -15,7 +15,7 @@ export async function POST(
       return NextResponse.json({ message: 'Failed to regenerate key' }, { status: res.status })
     }
     return NextResponse.json(await res.json())
-  } catch (err) {
+  } catch {
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }

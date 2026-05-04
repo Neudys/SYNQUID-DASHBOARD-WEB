@@ -18,7 +18,7 @@ export async function DELETE(
       return NextResponse.json({ message }, { status: res.status })
     }
     return new NextResponse(null, { status: 204 })
-  } catch (err) {
+  } catch {
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }

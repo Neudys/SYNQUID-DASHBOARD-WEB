@@ -18,7 +18,7 @@ export async function GET(
       return NextResponse.json({ message: 'Failed to fetch members' }, { status: res.status })
     }
     return NextResponse.json(await res.json())
-  } catch (err) {
+  } catch {
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }
@@ -44,7 +44,7 @@ export async function POST(
     let data = {}
     try { if (text) data = JSON.parse(text) } catch { /* ok */ }
     return NextResponse.json(data, { status: 201 })
-  } catch (err) {
+  } catch {
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }

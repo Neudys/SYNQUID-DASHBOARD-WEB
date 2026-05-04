@@ -48,7 +48,6 @@ interface NavItem {
 const ADMIN_ROLES   = [Role.SuperAdmin, Role.Admin] as const
 const STAFF_ROLES   = [Role.SuperAdmin, Role.Admin, Role.Professor] as const
 const STUDENT_ROLES = [Role.Student] as const
-const ALL_ROLES     = [Role.SuperAdmin, Role.Admin, Role.Professor, Role.Student] as const
 
 const navItems: NavItem[] = [
   { title: 'Dashboard',      href: '/dashboard',            icon: LayoutDashboardIcon, roles: STAFF_ROLES },

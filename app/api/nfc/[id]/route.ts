@@ -23,7 +23,7 @@ export async function PUT(
       )
     }
     return NextResponse.json(await res.json().catch(() => ({ ok: true })))
-  } catch (err) {
+  } catch {
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }
@@ -39,7 +39,7 @@ export async function DELETE(
       return NextResponse.json({ message: 'Failed to delete NFC card' }, { status: res.status })
     }
     return NextResponse.json({ ok: true })
-  } catch (err) {
+  } catch {
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }

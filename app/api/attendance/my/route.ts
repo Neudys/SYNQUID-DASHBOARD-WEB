@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
           ? data
           : []
     return NextResponse.json(records)
-  } catch (err) {
+  } catch {
     return NextResponse.json([], { status: 500 })
   }
 }

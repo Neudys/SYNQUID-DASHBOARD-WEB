@@ -25,7 +25,7 @@ export async function POST(
     let data = {}
     try { if (text) data = JSON.parse(text) } catch { /* plain text ok */ }
     return NextResponse.json(data, { status: 200 })
-  } catch (err) {
+  } catch {
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }

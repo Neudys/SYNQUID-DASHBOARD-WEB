@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
 
     await setAuthCookie(token)
     return NextResponse.json({ ok: true })
-  } catch (err) {
+  } catch {
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }

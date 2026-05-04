@@ -18,7 +18,7 @@ export async function GET(
       return NextResponse.json({ message: 'Failed to fetch daily attendance' }, { status: res.status })
     }
     return NextResponse.json(await res.json())
-  } catch (err) {
+  } catch {
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }
