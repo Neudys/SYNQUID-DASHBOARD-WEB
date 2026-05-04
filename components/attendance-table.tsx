@@ -42,11 +42,12 @@ interface AttendanceRecord {
   employeeName?: string
   userName?: string
   readerName?: string
-  readerId?: string
   timestamp?: string
   timestampUtc?: string
   timestampLocal?: string
   createdAt?: string
+  user?: { firstName?: string; name?: string; fullName?: string; email?: string }
+  device?: { name?: string; deviceName?: string }
 }
 
 interface Reader {
@@ -56,101 +57,70 @@ interface Reader {
 
 const PAGE_SIZE = 10
 
+function resolveUserName(r: AttendanceRecord): string {
+  const u = r.user
+  return u?.firstName ?? u?.name ?? u?.fullName ?? u?.email ?? r.userName ?? r.employeeName ?? '—'
+}
+
+function resolveReaderName(r: AttendanceRecord): string {
+  const d = r.device
+  return d?.name ?? d?.deviceName ?? r.readerName ?? 'Manual'
+}
+
 export function AttendanceTable() {
   const container = useRef<HTMLDivElement>(null)
-  const [allRecords, setAllRecords] = useState<AttendanceRecord[]>([])
+  const [records, setRecords] = useState<AttendanceRecord[]>([])
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [readers, setReaders] = useState<Reader[]>([])
-  const [readerId, setReaderId] = useState<string>('all')
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
+
+  // UI (pending) filter state
+  const [uiReaderId, setUiReaderId] = useState('all')
+  const [uiDateFrom, setUiDateFrom] = useState('')
+  const [uiDateTo, setUiDateTo] = useState('')
+
+  // Applied filter state — drives the fetch
+  const [appliedReaderId, setAppliedReaderId] = useState('all')
+  const [appliedDateFrom, setAppliedDateFrom] = useState('')
+  const [appliedDateTo, setAppliedDateTo] = useState('')
+
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<AttendanceRecord | null>(null)
 
   const selectedReader = useMemo(
-    () => readers.find((r) => r.id === readerId),
-    [readers, readerId],
+    () => readers.find((r) => r.id === uiReaderId),
+    [readers, uiReaderId],
   )
 
-  const filteredRecords = useMemo(() => {
-    const fromTime = dateFrom ? new Date(`${dateFrom}T00:00:00`).getTime() : null
-    const toTime = dateTo ? new Date(`${dateTo}T23:59:59`).getTime() : null
-
-    return allRecords.filter((r) => {
-      if (readerId !== 'all') {
-        const matchesId = r.readerId === readerId
-        const matchesName = selectedReader ? r.readerName === selectedReader.name : false
-        if (!matchesId && !matchesName) return false
-      }
-
-      const ts = r.timestampUtc ?? r.timestampLocal ?? r.timestamp ?? r.createdAt
-      if (!ts) return !fromTime && !toTime
-
-      const t = new Date(ts).getTime()
-      if (fromTime !== null && t < fromTime) return false
-      if (toTime !== null && t > toTime) return false
-      return true
-    })
-  }, [allRecords, readerId, selectedReader, dateFrom, dateTo])
-
-  const total = filteredRecords.length
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
-  const records = useMemo(
-    () => filteredRecords.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-    [filteredRecords, page],
-  )
-
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (
+    targetPage: number,
+    rId: string,
+    dFrom: string,
+    dTo: string,
+  ) => {
     setLoading(true)
     try {
-      const res = await fetch(API.attendanceAll)
+      const params = new URLSearchParams({ page: String(targetPage), limit: String(PAGE_SIZE) })
+      if (rId !== 'all') params.set('deviceId', rId)
+      if (dFrom) params.set('from', dFrom)
+      if (dTo) params.set('to', dTo)
+      const res = await fetch(`${API.attendanceAll}?${params}`)
       if (!res.ok) return
       const data = await res.json()
-
-      await Promise.all(
-        data.map(async (record: AttendanceRecord) => {
-          const [resU, resD] = await Promise.all([
-            fetch(`${API.readers}/${record.deviceId}`),
-            fetch(`${API.users}/${record.userId}`),
-          ])
-          if (resU.ok) {
-            const readerData = await resU.json()
-            const d = readerData.deviceInfo ?? readerData
-            record.readerName = d?.name || d?.deviceName || record.readerName || ''
-          }
-          if (resD.ok) {
-            const userData = await resD.json()
-            const u = userData.userData ?? userData
-            record.userName =
-              u?.firstName ||
-              u?.name ||
-              u?.fullName ||
-              u?.displayName ||
-              u?.userName ||
-              u?.email ||
-              record.userName ||
-              ''
-          }
-        }),
-      )
-
-      const list: AttendanceRecord[] = Array.isArray(data)
-        ? data
-        : (data.items ?? [])
-      setAllRecords(list)
+      const list: AttendanceRecord[] = data.records ?? data.items ?? (Array.isArray(data) ? data : [])
+      setRecords(list)
+      setTotal(data.total ?? list.length)
+      setTotalPages(data.totalPages ?? Math.max(1, Math.ceil((data.total ?? list.length) / PAGE_SIZE)))
     } finally {
       setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    fetchData()
-  }, [fetchData])
-
-  useEffect(() => {
-    if (page > totalPages) setPage(1)
-  }, [page, totalPages])
+    fetchData(page, appliedReaderId, appliedDateFrom, appliedDateTo)
+  }, [fetchData, page, appliedReaderId, appliedDateFrom, appliedDateTo])
 
   useEffect(() => {
     fetch(API.readers)
@@ -203,7 +173,7 @@ export function AttendanceTable() {
     setDeletingId(id)
     try {
       await fetch(`${API.attendance}/${id}`, { method: 'DELETE' })
-      await fetchData()
+      await fetchData(page, appliedReaderId, appliedDateFrom, appliedDateTo)
     } finally {
       setDeletingId(null)
       setConfirmDelete(null)
@@ -212,6 +182,19 @@ export function AttendanceTable() {
 
   function handleFilter(e: React.FormEvent) {
     e.preventDefault()
+    setAppliedReaderId(uiReaderId)
+    setAppliedDateFrom(uiDateFrom)
+    setAppliedDateTo(uiDateTo)
+    setPage(1)
+  }
+
+  function handleClear() {
+    setUiReaderId('all')
+    setUiDateFrom('')
+    setUiDateTo('')
+    setAppliedReaderId('all')
+    setAppliedDateFrom('')
+    setAppliedDateTo('')
     setPage(1)
   }
 
@@ -234,8 +217,8 @@ export function AttendanceTable() {
             <Input
               id="dateFrom"
               type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
+              value={uiDateFrom}
+              onChange={(e) => setUiDateFrom(e.target.value)}
               className="w-40 bg-background/80"
             />
           </div>
@@ -244,17 +227,17 @@ export function AttendanceTable() {
             <Input
               id="dateTo"
               type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
+              value={uiDateTo}
+              onChange={(e) => setUiDateTo(e.target.value)}
               className="w-40 bg-background/80"
             />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label className="text-xs text-muted-foreground">Reader</Label>
-            <Select value={readerId} onValueChange={(v) => setReaderId(v ?? 'all')}>
+            <Select value={uiReaderId} onValueChange={(v) => setUiReaderId(v ?? 'all')}>
               <SelectTrigger className="w-48 bg-background/80">
                 <SelectValue placeholder="All readers">
-                  {readerId === 'all'
+                  {uiReaderId === 'all'
                     ? 'All readers'
                     : selectedReader?.name ?? 'All readers'}
                 </SelectValue>
@@ -274,12 +257,7 @@ export function AttendanceTable() {
               type="button"
               variant="ghost"
               className="cursor-pointer text-muted-foreground hover:text-foreground"
-              onClick={() => {
-                setDateFrom('')
-                setDateTo('')
-                setReaderId('all')
-                setPage(1)
-              }}
+              onClick={handleClear}
             >
               Clear
             </Button>
@@ -344,11 +322,11 @@ export function AttendanceTable() {
                   className="border-border/40 transition-colors duration-150 ease-out hover:bg-secondary/40"
                 >
                   <TableCell className="font-medium">
-                    {record.employeeName || record.userName || '—'}
+                    {resolveUserName(record)}
                   </TableCell>
                   <TableCell>
                     <span className="inline-flex items-center rounded-md bg-sage/30 px-2 py-0.5 text-xs font-medium text-forest dark:bg-sage/15 dark:text-sage">
-                      {record.readerName || '—'}
+                      {resolveReaderName(record)}
                     </span>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground tabular-nums">
