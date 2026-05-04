@@ -49,9 +49,12 @@ interface User {
   name: string
   lastName?: string
   email: string
-  role?: string
+  role?: string | number
   password?: string
   institutionId?: string
+  institutionName?: string
+  isActive?: boolean
+  createdAt?: string
 }
 
 const ROLES: Record<string, string> = {
@@ -298,6 +301,7 @@ export function UsersTable() {
           <TableHeader>
             <TableRow className="hover:bg-transparent border-border/40">
               <TableHead className="text-xs uppercase tracking-wider">Name</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider">Last Name</TableHead>
               <TableHead className="text-xs uppercase tracking-wider">Email</TableHead>
               <TableHead className="text-xs uppercase tracking-wider">Role</TableHead>
               <TableHead className="text-xs uppercase tracking-wider text-right">Actions</TableHead>
@@ -307,7 +311,7 @@ export function UsersTable() {
             {loading ? (
               Array.from({ length: 4 }).map((_, i) => (
                 <TableRow key={i} className="border-border/40">
-                  {Array.from({ length: 4 }).map((__, j) => (
+                  {Array.from({ length: 5 }).map((__, j) => (
                     <TableCell key={j}>
                       <Skeleton className="h-4 w-full" />
                     </TableCell>
@@ -316,7 +320,7 @@ export function UsersTable() {
               ))
             ) : users.length === 0 ? (
               <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={4} className="py-12 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={5} className="py-12 text-center text-sm text-muted-foreground">
                   No users yet. Add one to get started.
                 </TableCell>
               </TableRow>
@@ -331,12 +335,14 @@ export function UsersTable() {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-primary/15 to-teal/15 text-xs font-semibold text-primary">
-                          {getInitials(user.firstName ?? "-")}
+                          {getInitials(user.firstName ?? '?')}
                         </div>
-                        <span className="font-medium">{user.name}</span>
+                        <span className="font-medium">{user.firstName ?? user.name ?? '—'}</span>
                       </div>
                     </TableCell>
+                    <TableCell className="text-muted-foreground">{user.lastName ?? '—'}</TableCell>
                     <TableCell className="text-muted-foreground">{user.email}</TableCell>
+
                     <TableCell>
                       <span
                         className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium capitalize ${roleStyles[String(user.role ?? '3')] ?? 'bg-muted/60 text-muted-foreground'}`}
@@ -437,11 +443,11 @@ export function UsersTable() {
             <div className="flex flex-col gap-2">
               <Label>Role</Label>
               <Select
-                value={editing.role ?? '3'}
-                onValueChange={(v) => setEditing({ ...editing, role: v ?? undefined })}
+                value={String(editing.role ?? '3')}
+                onValueChange={(v) => setEditing({ ...editing, role: v ?? '3' })}
               >
                 <SelectTrigger>
-                  <SelectValue>{ROLES[editing.role ?? '3'] ?? 'Student'}</SelectValue>
+                  <SelectValue>{ROLES[String(editing.role ?? '3')] ?? 'Student'}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="0">SuperAdmin</SelectItem>
