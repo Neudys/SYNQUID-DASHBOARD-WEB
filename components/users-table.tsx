@@ -90,6 +90,7 @@ export function UsersTable() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
+  const [totalUsers, setTotalUsers] = useState(0)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<User & { password?: string }>(EMPTY)
   const [saving, setSaving] = useState(false)
@@ -98,8 +99,6 @@ export function UsersTable() {
   const [showPassword, setShowPassword] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [institutions, setInstitutions] = useState<Institution[]>([])
-
-  useEffect(() => { setPage(1) }, [users])
 
   useEffect(() => {
     const cached = clientCache.get<Institution[]>('institutions')
@@ -114,29 +113,33 @@ export function UsersTable() {
       .catch(() => {})
   }, [])
 
-  const fetchUsers = useCallback(async (force = false) => {
-    const cached = clientCache.get<User[]>('users')
+  const fetchUsers = useCallback(async (targetPage: number, force = false) => {
+    const cacheKey = `users_p${targetPage}`
+    const cached = clientCache.get<{ users: User[]; total: number }>(cacheKey)
     if (cached && !force) {
-      setUsers(cached)
+      setUsers(cached.users)
+      setTotalUsers(cached.total)
       setLoading(false)
-    } else if (!cached) {
-      setLoading(true)
+      return
     }
+    setLoading(true)
     try {
-      const res = await fetch(API.users)
+      const res = await fetch(`${API.users}?page=${targetPage}`)
       if (!res.ok) return
       const data = await res.json()
       const list: User[] = Array.isArray(data) ? data : data.users ?? []
-      clientCache.set('users', list)
+      const total: number = data.totalUsers ?? list.length
+      clientCache.set(cacheKey, { users: list, total })
       setUsers(list)
+      setTotalUsers(total)
     } finally {
       setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    fetchUsers()
-  }, [fetchUsers])
+    fetchUsers(page)
+  }, [fetchUsers, page])
 
   useGSAP(
     () => {
@@ -235,9 +238,9 @@ export function UsersTable() {
         }
       }
 
-      clientCache.del('users')
+      clientCache.del(`users_p${page}`)
       setDialogOpen(false)
-      await fetchUsers(true)
+      await fetchUsers(page, true)
     } finally {
       setSaving(false)
     }
@@ -247,16 +250,17 @@ export function UsersTable() {
     setDeletingId(id)
     try {
       await fetch(`${API.users}/${id}`, { method: 'DELETE' })
-      clientCache.del('users')
-      await fetchUsers(true)
+      clientCache.del(`users_p${page}`)
+      await fetchUsers(page, true)
     } finally {
       setDeletingId(null)
       setConfirmDelete(null)
     }
   }
 
-  const totalPages = Math.max(1, Math.ceil(users.length / PAGE_SIZE))
-  const pageUsers = users.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const BACKEND_PAGE_SIZE = 20
+  const totalPages = Math.max(1, Math.ceil(totalUsers / BACKEND_PAGE_SIZE))
+  const pageUsers = users
 
   return (
     <div ref={container} className="flex flex-col gap-5">
@@ -271,7 +275,7 @@ export function UsersTable() {
           </div>
           <div>
             <p className="text-sm font-semibold text-foreground">
-              {users.length} user{users.length !== 1 ? 's' : ''}
+              {totalUsers} user{totalUsers !== 1 ? 's' : ''}
             </p>
             <p className="text-xs text-muted-foreground">
               Grant access by role: admin, manager, employee.
@@ -375,7 +379,7 @@ export function UsersTable() {
         {!loading && totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-border/40">
             <p className="hidden text-sm text-muted-foreground lg:block">
-              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, users.length)} of {users.length}
+              {(page - 1) * BACKEND_PAGE_SIZE + 1}–{Math.min(page * BACKEND_PAGE_SIZE, totalUsers)} of {totalUsers}
             </p>
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium">Page {page} of {totalPages}</span>

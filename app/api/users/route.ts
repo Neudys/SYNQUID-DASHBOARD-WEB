@@ -4,9 +4,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { backendFetch } from '@/lib/api'
 import { BACKEND } from '@/lib/endpoints'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const res = await backendFetch(BACKEND.users.list)
+    const page = req.nextUrl.searchParams.get('page') ?? '1'
+    const res = await backendFetch(`${BACKEND.users.list}?page=${page}`)
     if (!res.ok) {
       return NextResponse.json({ message: 'Failed to fetch users' }, { status: res.status })
     }
