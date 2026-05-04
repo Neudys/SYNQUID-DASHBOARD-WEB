@@ -60,7 +60,7 @@ const STATUS_CELL: Record<number, { border: string; bg: string; text: string; do
   3: { border: 'border-amber-400/50',     bg: 'bg-amber-500/10',   text: 'text-amber-700',   dot: 'bg-amber-500' },
 }
 
-const DAYS_OF_WEEK = ['Domingo', 'Lunes', 'Martes', 'MiÃ©rcoles', 'Jueves', 'Viernes', 'SÃ¡bado']
+const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
 function toLocalDate(d: Date): string {
   const y = d.getFullYear()
@@ -499,7 +499,7 @@ function StudentCalendarView({
         ) : (
           <div className="grid gap-1">
             <div className="grid grid-cols-7 gap-1 pb-2">
-              {['Dom', 'Lun', 'Mar', 'MiÃ©', 'Jue', 'Vie', 'SÃ¡b'].map(d => (
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
                 <div
                   key={d}
                   className="text-center text-[10px] font-medium uppercase tracking-wider text-muted-foreground"

@@ -89,7 +89,7 @@ export const BACKEND = {
     assignCard:  '/api/Nfc/AssignCard',
     byUid:       (uid: string) => `/api/Nfc/${uid}`,
     update:      (id: string) => `/api/Nfc/${id}`,
-    delete:      (id: string) => `/api/Nfc?id=${encodeURIComponent(id)}`,
+    delete:      (id: string) => `/api/Nfc/${encodeURIComponent(id)}`,
   },
   groups: {
     list:          '/api/Group',

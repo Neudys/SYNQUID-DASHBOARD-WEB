@@ -58,6 +58,7 @@ interface RawInstitution {
 
 interface RawUser {
   id?: string
+  name?: string
   firstName?: string
   lastName?: string
   email?: string
@@ -75,6 +76,7 @@ interface RawNfc {
   revokedAt?: string | null
   createdAt?: string
   user?: RawUser | null
+  institution?: RawInstitution | null
 }
 
 interface NfcCard {
@@ -102,7 +104,7 @@ interface UserOption {
   institutionId?: string | null
 }
 
-function displayName(u: Pick<UserOption, 'firstName' | 'lastName' | 'name' | 'email'>) {
+function displayName(u: Pick<UserOption, 'firstName' | 'lastName' | 'name'> & { email?: string }) {
   if (u.firstName || u.lastName) return `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim()
   return u.name ?? u.email ?? '—'
 }
@@ -114,6 +116,9 @@ const cardTypeLabels: Record<number, string> = {
 }
 
 function parseCard(c: RawNfc): NfcCard {
+  const userName = c.user?.name ?? [c.user?.firstName, c.user?.lastName].filter(Boolean).join(' ') ?? undefined
+  const [firstName, ...rest] = userName?.split(' ') ?? []
+  const lastName = rest.join(' ') || undefined
   return {
     id: c.id,
     userId: c.userId ?? null,
@@ -122,11 +127,11 @@ function parseCard(c: RawNfc): NfcCard {
     isActive: c.isActive ?? true,
     createdAt: c.createdAt,
     revokedAt: c.revokedAt ?? null,
-    firstName: c.user?.firstName,
-    lastName: c.user?.lastName,
+    firstName: firstName || undefined,
+    lastName: lastName,
     email: c.user?.email,
-    institutionId: c.user?.institutionId ?? c.user?.institution?.id ?? null,
-    institutionName: c.user?.institution?.name,
+    institutionId: c.institution?.id ?? c.user?.institutionId ?? c.user?.institution?.id ?? null,
+    institutionName: c.institution?.name ?? c.user?.institution?.name,
   }
 }
 
@@ -443,7 +448,9 @@ export function NfcTable() {
                     <TableCell>
                       <div className="flex flex-col">
                         <span className="font-medium text-foreground">{name}</span>
-                        <span className="text-xs text-muted-foreground">{card.email ?? '—'}</span>
+                        {card.email && (
+                          <span className="text-xs text-muted-foreground">{card.email}</span>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
