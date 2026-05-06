@@ -1,9 +1,20 @@
+'use client'
+
+import { useSearchParams } from 'next/navigation'
+import useSWR from 'swr'
 import { UsersIcon, ClockIcon, CheckCircleIcon, type LucideIcon } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { backendFetch } from '@/lib/api'
-import { BACKEND } from '@/lib/endpoints'
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { TeacherGroupSelector, type TeacherGroup } from '@/components/teacher-group-selector'
+import { fetcher, POLL_INTERVAL } from '@/lib/fetcher'
 
 interface Student {
   userId: string
@@ -24,102 +35,67 @@ interface AttendanceRecord {
   timestampLocal?: string
 }
 
-async function fetchGroups(): Promise<TeacherGroup[]> {
-  try {
-    const res = await backendFetch(BACKEND.teacher.myGroups)
-    if (!res.ok) return []
-    const body = await res.json()
-    return Array.isArray(body?.data) ? body.data : []
-  } catch {
-    return []
-  }
+const SWR_POLL = {
+  refreshInterval: POLL_INTERVAL,
+  dedupingInterval: 2_000,
+  revalidateOnFocus: true,
+  keepPreviousData: true,
+} as const
+
+function toArray<T>(raw: unknown): T[] {
+  if (!raw) return []
+  if (Array.isArray(raw)) return raw as T[]
+  const r = raw as Record<string, unknown>
+  if (Array.isArray(r.data)) return r.data as T[]
+  if (Array.isArray(r.groups)) return r.groups as T[]
+  if (Array.isArray(r.students)) return r.students as T[]
+  if (Array.isArray(r.attendances)) return r.attendances as T[]
+  return []
 }
 
-async function fetchStudents(groupId: string): Promise<Student[]> {
-  try {
-    const res = await backendFetch(`${BACKEND.teacher.groupStudents(groupId)}?page=1&limit=100`)
-    if (!res.ok) return []
-    const body = await res.json()
-    return Array.isArray(body?.data) ? body.data : []
-  } catch {
-    return []
-  }
-}
+export function TeacherDashboard() {
+  const searchParams = useSearchParams()
+  const urlGroupId = searchParams.get('groupId')
 
-async function fetchToday(groupId: string): Promise<AttendanceRecord[]> {
-  try {
-    const res = await backendFetch(`${BACKEND.attendance.today}?groupId=${groupId}`)
-    if (!res.ok) return []
-    const body = await res.json()
-    return Array.isArray(body?.data) ? body.data : Array.isArray(body) ? body : []
-  } catch {
-    return []
-  }
-}
-
-async function fetchHistory(groupId: string): Promise<AttendanceRecord[]> {
-  try {
-    const today = new Date().toISOString().slice(0, 10)
-    const res = await backendFetch(
-      `${BACKEND.attendance.history}?groupId=${groupId}&from=${today}&to=${today}&page=1&limit=20`,
-    )
-    if (!res.ok) return []
-    const body = await res.json()
-    return Array.isArray(body?.data) ? body.data : Array.isArray(body) ? body : []
-  } catch {
-    return []
-  }
-}
-
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-  description,
-  accent,
-}: {
-  icon: LucideIcon
-  label: string
-  value: string | number
-  description: string
-  accent: { bg: string; text: string }
-}) {
-  return (
-    <Card className="border-border/60 bg-card/80 backdrop-blur-sm">
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
-            <p className="mt-2 text-2xl font-bold tabular-nums text-foreground">{value}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{description}</p>
-          </div>
-          <div className={`flex size-10 shrink-0 items-center justify-center rounded-lg ${accent.bg} ${accent.text}`}>
-            <Icon className="size-5" />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+  // Groups — light poll, changes rarely
+  const { data: groupsRaw } = useSWR(
+    '/api/teacher/myGroups',
+    fetcher,
+    { revalidateOnFocus: true, dedupingInterval: 5_000 },
   )
-}
+  const groups: TeacherGroup[] = toArray<TeacherGroup>(groupsRaw)
 
-export async function TeacherDashboard({ groupIdParam }: { groupIdParam?: string }) {
-  const groups = await fetchGroups()
-  const activeGroupId = groupIdParam && groups.some((g) => g.groupId === groupIdParam)
-    ? groupIdParam
-    : groups[0]?.groupId ?? null
+  const activeGroupId =
+    urlGroupId && groups.some((g) => g.groupId === urlGroupId)
+      ? urlGroupId
+      : groups[0]?.groupId ?? null
 
-  const [students, todayRecords, historyRecords] = activeGroupId
-    ? await Promise.all([
-        fetchStudents(activeGroupId),
-        fetchToday(activeGroupId),
-        fetchHistory(activeGroupId),
-      ])
-    : [[], [], []]
+  const today = new Date().toISOString().slice(0, 10)
 
-  const presentToday = todayRecords.filter((r) => r.status === 0 || r.status === undefined).length
+  // Students in the active group — poll to catch new enrollments
+  const { data: studentsRaw, isLoading: studentsLoading } = useSWR(
+    activeGroupId
+      ? `/api/teacher/groups/${activeGroupId}/students?page=1&limit=100`
+      : null,
+    fetcher,
+    SWR_POLL,
+  )
+
+  // Today's history records (timestamps + names) — poll actively, high limit to count all
+  const { data: historyRaw } = useSWR(
+    activeGroupId
+      ? `/api/attendance/history?groupId=${activeGroupId}&from=${today}&to=${today}&page=1&limit=500`
+      : null,
+    fetcher,
+    SWR_POLL,
+  )
+
+  const students: Student[] = toArray<Student>(studentsRaw)
+  const historyRecords: AttendanceRecord[] = toArray<AttendanceRecord>(historyRaw)
+
   const totalStudents = students.length
+  const presentToday = historyRecords.filter((r) => r.status === 0 || r.status === 3).length
   const absentToday = Math.max(0, totalStudents - presentToday)
-
   const activeGroup = groups.find((g) => g.groupId === activeGroupId)
 
   return (
@@ -148,21 +124,21 @@ export async function TeacherDashboard({ groupIdParam }: { groupIdParam?: string
             <StatCard
               icon={UsersIcon}
               label="Enrolled"
-              value={totalStudents}
+              value={studentsLoading ? '—' : totalStudents}
               description="Students in this class"
               accent={{ bg: 'bg-teal/15', text: 'text-teal' }}
             />
             <StatCard
               icon={CheckCircleIcon}
               label="Present today"
-              value={presentToday}
+              value={studentsLoading ? '—' : presentToday}
               description="Checked in today"
               accent={{ bg: 'bg-primary/10', text: 'text-primary' }}
             />
             <StatCard
               icon={ClockIcon}
               label="Absent today"
-              value={absentToday}
+              value={studentsLoading ? '—' : absentToday}
               description="Not checked in yet"
               accent={{ bg: 'bg-moss/15', text: 'text-moss' }}
             />
@@ -183,7 +159,16 @@ export async function TeacherDashboard({ groupIdParam }: { groupIdParam?: string
               </span>
             </div>
             <CardContent className="p-0">
-              {students.length === 0 ? (
+              {studentsLoading ? (
+                <div className="flex flex-col divide-y divide-border/40">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-4 px-5 py-3">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-4 w-48" />
+                    </div>
+                  ))}
+                </div>
+              ) : students.length === 0 ? (
                 <div className="px-6 py-10 text-center text-sm text-muted-foreground">
                   No students enrolled in this class yet.
                 </div>
@@ -229,7 +214,17 @@ export async function TeacherDashboard({ groupIdParam }: { groupIdParam?: string
               </span>
             </div>
             <CardContent className="p-0">
-              {historyRecords.length === 0 ? (
+              {studentsLoading ? (
+                <div className="flex flex-col divide-y divide-border/40">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-4 px-5 py-3">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-4 w-16" />
+                      <Skeleton className="h-4 w-24 ml-auto" />
+                    </div>
+                  ))}
+                </div>
+              ) : historyRecords.length === 0 ? (
                 <div className="px-6 py-10 text-center text-sm text-muted-foreground">
                   No attendance recorded today yet.
                 </div>
@@ -247,9 +242,10 @@ export async function TeacherDashboard({ groupIdParam }: { groupIdParam?: string
                       const studentName =
                         r.firstName || r.lastName
                           ? `${r.firstName ?? ''} ${r.lastName ?? ''}`.trim()
-                          : students.find((s) => s.userId === r.userId)
-                            ? `${students.find((s) => s.userId === r.userId)!.firstName} ${students.find((s) => s.userId === r.userId)!.lastName}`
-                            : '—'
+                          : (() => {
+                              const s = students.find((s) => s.userId === r.userId)
+                              return s ? `${s.firstName} ${s.lastName}` : '—'
+                            })()
                       const when = r.timestampLocal ?? r.timestamp
                       return (
                         <TableRow key={r.id} className="border-border/40">
@@ -271,6 +267,37 @@ export async function TeacherDashboard({ groupIdParam }: { groupIdParam?: string
         </>
       )}
     </div>
+  )
+}
+
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  description,
+  accent,
+}: {
+  icon: LucideIcon
+  label: string
+  value: string | number
+  description: string
+  accent: { bg: string; text: string }
+}) {
+  return (
+    <Card className="border-border/60 bg-card/80 backdrop-blur-sm">
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
+            <p className="mt-2 text-2xl font-bold tabular-nums text-foreground">{value}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+          </div>
+          <div className={`flex size-10 shrink-0 items-center justify-center rounded-lg ${accent.bg} ${accent.text}`}>
+            <Icon className="size-5" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 

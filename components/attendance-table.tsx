@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import useSWR from 'swr'
 import gsap from 'gsap'
 import { useGSAP } from '@gsap/react'
 import {
@@ -31,6 +32,7 @@ import {
   ClockIcon,
 } from 'lucide-react'
 import { API } from '@/lib/endpoints'
+import { fetcher, POLL_INTERVAL } from '@/lib/fetcher'
 import { DURATION, EASE, STAGGER, prefersReducedMotion } from '@/lib/animations'
 
 gsap.registerPlugin(useGSAP)
@@ -55,6 +57,13 @@ interface Reader {
   name: string
 }
 
+interface AttendanceResponse {
+  records?: AttendanceRecord[]
+  items?: AttendanceRecord[]
+  total?: number
+  totalPages?: number
+}
+
 const PAGE_SIZE = 10
 
 function resolveUserName(r: AttendanceRecord): string {
@@ -69,12 +78,9 @@ function resolveReaderName(r: AttendanceRecord): string {
 
 export function AttendanceTable() {
   const container = useRef<HTMLDivElement>(null)
-  const [records, setRecords] = useState<AttendanceRecord[]>([])
-  const [total, setTotal] = useState(0)
-  const [totalPages, setTotalPages] = useState(1)
   const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(true)
-  const [readers, setReaders] = useState<Reader[]>([])
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<AttendanceRecord | null>(null)
 
   // UI (pending) filter state
   const [uiReaderId, setUiReaderId] = useState('all')
@@ -86,50 +92,55 @@ export function AttendanceTable() {
   const [appliedDateFrom, setAppliedDateFrom] = useState('')
   const [appliedDateTo, setAppliedDateTo] = useState('')
 
-  const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [confirmDelete, setConfirmDelete] = useState<AttendanceRecord | null>(null)
+  // Build the SWR key from applied filters + page
+  const attendanceKey = useMemo(() => {
+    const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) })
+    if (appliedReaderId !== 'all') params.set('deviceId', appliedReaderId)
+    if (appliedDateFrom) params.set('from', appliedDateFrom)
+    if (appliedDateTo) params.set('to', appliedDateTo)
+    return `${API.attendanceAll}?${params}`
+  }, [page, appliedReaderId, appliedDateFrom, appliedDateTo])
+
+  const { data: attendanceData, isLoading, mutate } = useSWR<AttendanceResponse | AttendanceRecord[]>(
+    attendanceKey,
+    fetcher,
+    {
+      refreshInterval: POLL_INTERVAL,
+      dedupingInterval: 2_000,
+      revalidateOnFocus: true,
+      keepPreviousData: true,
+    },
+  )
+
+  const { data: readersRaw } = useSWR<Reader[] | { items: Reader[] }>(
+    API.readers,
+    fetcher,
+    { revalidateOnFocus: true },
+  )
+
+  const records: AttendanceRecord[] = Array.isArray(attendanceData)
+    ? attendanceData
+    : (attendanceData as AttendanceResponse)?.records ??
+      (attendanceData as AttendanceResponse)?.items ??
+      []
+
+  const total: number = Array.isArray(attendanceData)
+    ? attendanceData.length
+    : (attendanceData as AttendanceResponse)?.total ?? records.length
+
+  const totalPages: number = Array.isArray(attendanceData)
+    ? Math.max(1, Math.ceil(total / PAGE_SIZE))
+    : (attendanceData as AttendanceResponse)?.totalPages ??
+      Math.max(1, Math.ceil(total / PAGE_SIZE))
+
+  const readers: Reader[] = Array.isArray(readersRaw)
+    ? readersRaw
+    : (readersRaw as { items?: Reader[] })?.items ?? []
 
   const selectedReader = useMemo(
     () => readers.find((r) => r.id === uiReaderId),
     [readers, uiReaderId],
   )
-
-  const fetchData = useCallback(async (
-    targetPage: number,
-    rId: string,
-    dFrom: string,
-    dTo: string,
-  ) => {
-    setLoading(true)
-    try {
-      const params = new URLSearchParams({ page: String(targetPage), limit: String(PAGE_SIZE) })
-      if (rId !== 'all') params.set('deviceId', rId)
-      if (dFrom) params.set('from', dFrom)
-      if (dTo) params.set('to', dTo)
-      const res = await fetch(`${API.attendanceAll}?${params}`)
-      if (!res.ok) return
-      const data = await res.json()
-      const list: AttendanceRecord[] = data.records ?? data.items ?? (Array.isArray(data) ? data : [])
-      setRecords(list)
-      setTotal(data.total ?? list.length)
-      setTotalPages(data.totalPages ?? Math.max(1, Math.ceil((data.total ?? list.length) / PAGE_SIZE)))
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchData(page, appliedReaderId, appliedDateFrom, appliedDateTo)
-  }, [fetchData, page, appliedReaderId, appliedDateFrom, appliedDateTo])
-
-  useEffect(() => {
-    fetch(API.readers)
-      .then((r) => r.json())
-      .then((data: Reader[] | { items: Reader[] }) => {
-        setReaders(Array.isArray(data) ? data : data.items ?? [])
-      })
-      .catch(() => {})
-  }, [])
 
   useGSAP(
     () => {
@@ -152,7 +163,7 @@ export function AttendanceTable() {
 
   useGSAP(
     () => {
-      if (prefersReducedMotion() || loading) return
+      if (prefersReducedMotion() || isLoading) return
       gsap.fromTo(
         '[data-row]',
         { opacity: 0, y: 6 },
@@ -166,14 +177,14 @@ export function AttendanceTable() {
         },
       )
     },
-    { scope: container, dependencies: [loading, records] },
+    { scope: container, dependencies: [isLoading, records] },
   )
 
   async function handleDelete(id: string) {
     setDeletingId(id)
     try {
       await fetch(`${API.attendance}/${id}`, { method: 'DELETE' })
-      await fetchData(page, appliedReaderId, appliedDateFrom, appliedDateTo)
+      await mutate()
     } finally {
       setDeletingId(null)
       setConfirmDelete(null)
@@ -295,7 +306,7 @@ export function AttendanceTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
+            {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i} className="border-border/40">
                   {Array.from({ length: 4 }).map((__, j) => (

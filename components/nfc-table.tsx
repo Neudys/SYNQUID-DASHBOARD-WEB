@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import useSWR from 'swr'
 import gsap from 'gsap'
 import { useGSAP } from '@gsap/react'
 import {
@@ -44,9 +45,9 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { API } from '@/lib/endpoints'
+import { fetcher } from '@/lib/fetcher'
 import { cn } from '@/lib/utils'
 import { DURATION, EASE, STAGGER, prefersReducedMotion } from '@/lib/animations'
-import { clientCache } from '@/lib/client-cache'
 
 gsap.registerPlugin(useGSAP)
 
@@ -138,9 +139,6 @@ const PAGE_SIZE = 10
 
 export function NfcTable() {
   const container = useRef<HTMLDivElement>(null)
-
-  const [cards, setCards] = useState<NfcCard[]>([])
-  const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
 
   const [assignOpen, setAssignOpen] = useState(false)
@@ -162,50 +160,19 @@ export function NfcTable() {
   const [confirmDelete, setConfirmDelete] = useState<NfcCard | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  useEffect(() => { setPage(1) }, [cards])
+  const { data: nfcRaw, isLoading, mutate } = useSWR<RawNfc[] | { items?: RawNfc[] }>(
+    API.nfc,
+    fetcher,
+    { revalidateOnFocus: true },
+  )
 
-  const fetchCards = useCallback(async (force = false) => {
-    const cached = clientCache.get<NfcCard[]>('nfc-cards')
-    if (cached && !force) {
-      setCards(cached)
-      setLoading(false)
-    } else if (!cached) {
-      setLoading(true)
-    }
-    try {
-      const res = await fetch(API.nfc)
-      if (res.ok) {
-        const data = await res.json()
-        const list: RawNfc[] = Array.isArray(data) ? data : data.items ?? []
-        const parsed = list.map(parseCard)
-        clientCache.set('nfc-cards', parsed)
-        setCards(parsed)
-      } else {
-        setCards([])
-      }
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const rawList: RawNfc[] = Array.isArray(nfcRaw)
+    ? nfcRaw
+    : (nfcRaw as { items?: RawNfc[] })?.items ?? []
 
-  const fetchStudents = useCallback(async () => {
-    setStudentsLoading(true)
-    try {
-      const res = await fetch(API.users)
-      if (res.ok) {
-        const data = await res.json()
-        const list: UserOption[] = Array.isArray(data) ? data : data.items ?? data.users ?? []
-        setStudents(list)
-      } else {
-        setStudents([])
-      }
-    } finally {
-      setStudentsLoading(false)
-    }
-  }, [])
+  const cards: NfcCard[] = useMemo(() => rawList.map(parseCard), [rawList])
 
   useEffect(() => {
-    fetchCards()
     fetch(API.auth.me)
       .then((r) => (r.ok ? r.json() : null))
       .then((u) => {
@@ -214,7 +181,7 @@ export function NfcTable() {
         setCurrentInstitutionId(raw.institutionId ?? raw.InstitutionId ?? null)
       })
       .catch(() => {})
-  }, [fetchCards])
+  }, [])
 
   useGSAP(
     () => {
@@ -249,7 +216,7 @@ export function NfcTable() {
 
   useGSAP(
     () => {
-      if (prefersReducedMotion() || loading) return
+      if (prefersReducedMotion() || isLoading) return
       gsap.fromTo(
         '[data-row]',
         { opacity: 0, y: 6 },
@@ -263,7 +230,7 @@ export function NfcTable() {
         },
       )
     },
-    { scope: container, dependencies: [loading, cards] },
+    { scope: container, dependencies: [isLoading, cards] },
   )
 
   const stats = useMemo(() => {
@@ -284,6 +251,22 @@ export function NfcTable() {
       return n.includes(q) || s.email.toLowerCase().includes(q)
     })
   }, [students, studentSearch])
+
+  const fetchStudents = useCallback(async () => {
+    setStudentsLoading(true)
+    try {
+      const res = await fetch(API.users)
+      if (res.ok) {
+        const data = await res.json()
+        const list: UserOption[] = Array.isArray(data) ? data : data.items ?? data.users ?? []
+        setStudents(list)
+      } else {
+        setStudents([])
+      }
+    } finally {
+      setStudentsLoading(false)
+    }
+  }, [])
 
   function openAssign() {
     setAssignUuid('')
@@ -317,9 +300,8 @@ export function NfcTable() {
         }),
       })
       if (res.ok) {
-        clientCache.del('nfc-cards')
         setAssignOpen(false)
-        await fetchCards(true)
+        await mutate()
       } else {
         const data = await res.json().catch(() => ({}))
         setAssignError(data.message ?? 'Failed to assign card')
@@ -342,9 +324,8 @@ export function NfcTable() {
         }),
       })
       if (res.ok) {
-        clientCache.del('nfc-cards')
         setEditOpen(false)
-        await fetchCards(true)
+        await mutate()
       }
     } finally {
       setEditSaving(false)
@@ -355,8 +336,7 @@ export function NfcTable() {
     setDeletingId(id)
     try {
       await fetch(`${API.nfc}/${id}`, { method: 'DELETE' })
-      clientCache.del('nfc-cards')
-      await fetchCards(true)
+      await mutate()
     } finally {
       setDeletingId(null)
       setConfirmDelete(null)
@@ -419,7 +399,7 @@ export function NfcTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
+            {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i} className="border-border/40">
                   {Array.from({ length: 6 }).map((__, j) => (
@@ -505,7 +485,7 @@ export function NfcTable() {
             )}
           </TableBody>
         </Table>
-        {!loading && totalPages > 1 && (
+        {!isLoading && totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-border/40">
             <p className="hidden text-sm text-muted-foreground lg:block">
               {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, cards.length)} of {cards.length}

@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import useSWR from 'swr'
 import gsap from 'gsap'
 import { useGSAP } from '@gsap/react'
 import {
@@ -33,8 +34,8 @@ import {
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { PlusIcon, PencilIcon, TrashIcon, UsersIcon, EyeIcon, EyeOffIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsLeftIcon, ChevronsRightIcon } from 'lucide-react'
 import { API } from '@/lib/endpoints'
+import { fetcher } from '@/lib/fetcher'
 import { DURATION, EASE, STAGGER, prefersReducedMotion } from '@/lib/animations'
-import { clientCache } from '@/lib/client-cache'
 
 gsap.registerPlugin(useGSAP)
 
@@ -55,6 +56,11 @@ interface User {
   institutionName?: string
   isActive?: boolean
   createdAt?: string
+}
+
+interface UsersResponse {
+  users?: User[]
+  totalUsers?: number
 }
 
 const ROLES: Record<string, string> = {
@@ -88,10 +94,7 @@ function getInitials(name: string) {
 
 export function UsersTable() {
   const container = useRef<HTMLDivElement>(null)
-  const [users, setUsers] = useState<User[]>([])
-  const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
-  const [totalUsers, setTotalUsers] = useState(0)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<User & { password?: string }>(EMPTY)
   const [saving, setSaving] = useState(false)
@@ -99,48 +102,30 @@ export function UsersTable() {
   const [confirmDelete, setConfirmDelete] = useState<User | null>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
-  const [institutions, setInstitutions] = useState<Institution[]>([])
 
-  useEffect(() => {
-    const cached = clientCache.get<Institution[]>('institutions')
-    if (cached) { setInstitutions(cached) }
-    fetch(API.institutions)
-      .then((r) => r.json())
-      .then((data) => {
-        const list: Institution[] = Array.isArray(data) ? data : data.institutions ?? []
-        clientCache.set('institutions', list)
-        setInstitutions(list)
-      })
-      .catch(() => {})
-  }, [])
+  const { data: usersRaw, isLoading, mutate } = useSWR<UsersResponse | User[]>(
+    `${API.users}?page=${page}`,
+    fetcher,
+    { revalidateOnFocus: true },
+  )
 
-  const fetchUsers = useCallback(async (targetPage: number, force = false) => {
-    const cacheKey = `users_p${targetPage}`
-    const cached = clientCache.get<{ users: User[]; total: number }>(cacheKey)
-    if (cached && !force) {
-      setUsers(cached.users)
-      setTotalUsers(cached.total)
-      setLoading(false)
-      return
-    }
-    setLoading(true)
-    try {
-      const res = await fetch(`${API.users}?page=${targetPage}`)
-      if (!res.ok) return
-      const data = await res.json()
-      const list: User[] = Array.isArray(data) ? data : data.users ?? []
-      const total: number = data.totalUsers ?? list.length
-      clientCache.set(cacheKey, { users: list, total })
-      setUsers(list)
-      setTotalUsers(total)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const { data: institutionsRaw } = useSWR<Institution[] | { institutions: Institution[] }>(
+    API.institutions,
+    fetcher,
+    { revalidateOnFocus: true },
+  )
 
-  useEffect(() => {
-    fetchUsers(page)
-  }, [fetchUsers, page])
+  const users: User[] = Array.isArray(usersRaw)
+    ? usersRaw
+    : (usersRaw as UsersResponse)?.users ?? []
+
+  const totalUsers: number = Array.isArray(usersRaw)
+    ? usersRaw.length
+    : (usersRaw as UsersResponse)?.totalUsers ?? users.length
+
+  const institutions: Institution[] = Array.isArray(institutionsRaw)
+    ? institutionsRaw
+    : (institutionsRaw as { institutions?: Institution[] })?.institutions ?? []
 
   useGSAP(
     () => {
@@ -162,7 +147,7 @@ export function UsersTable() {
 
   useGSAP(
     () => {
-      if (prefersReducedMotion() || loading) return
+      if (prefersReducedMotion() || isLoading) return
       gsap.fromTo(
         '[data-row]',
         { opacity: 0, y: 6 },
@@ -176,7 +161,7 @@ export function UsersTable() {
         },
       )
     },
-    { scope: container, dependencies: [loading, users] },
+    { scope: container, dependencies: [isLoading, users] },
   )
 
   function openCreate() {
@@ -187,13 +172,13 @@ export function UsersTable() {
   }
 
   function openEdit(user: User) {
-    setEditing({ 
-      ...user, 
-      role: String(user.role ?? '3'), 
-      password: '', 
+    setEditing({
+      ...user,
+      role: String(user.role ?? '3'),
+      password: '',
       institutionId: '',
       firstName: user.firstName ?? user.name ?? '',
-      lastName: user.lastName ?? ''
+      lastName: user.lastName ?? '',
     })
     setShowPassword(false)
     setSaveError(null)
@@ -226,7 +211,6 @@ export function UsersTable() {
         return
       }
 
-      // Assign to institution if selected (only on create)
       if (isNew && editing.institutionId) {
         const body = await res.json().catch(() => ({}))
         const userId: string | undefined = body.userId
@@ -239,9 +223,8 @@ export function UsersTable() {
         }
       }
 
-      clientCache.del(`users_p${page}`)
       setDialogOpen(false)
-      await fetchUsers(page, true)
+      await mutate()
     } finally {
       setSaving(false)
     }
@@ -251,8 +234,7 @@ export function UsersTable() {
     setDeletingId(id)
     try {
       await fetch(`${API.users}/${id}`, { method: 'DELETE' })
-      clientCache.del(`users_p${page}`)
-      await fetchUsers(page, true)
+      await mutate()
     } finally {
       setDeletingId(null)
       setConfirmDelete(null)
@@ -261,7 +243,6 @@ export function UsersTable() {
 
   const BACKEND_PAGE_SIZE = 20
   const totalPages = Math.max(1, Math.ceil(totalUsers / BACKEND_PAGE_SIZE))
-  const pageUsers = users
 
   return (
     <div ref={container} className="flex flex-col gap-5">
@@ -308,7 +289,7 @@ export function UsersTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
+            {isLoading ? (
               Array.from({ length: 4 }).map((_, i) => (
                 <TableRow key={i} className="border-border/40">
                   {Array.from({ length: 5 }).map((__, j) => (
@@ -325,61 +306,58 @@ export function UsersTable() {
                 </TableCell>
               </TableRow>
             ) : (
-              pageUsers.map((user) => {
-                return (
-                  <TableRow
-                    key={user.id}
-                    data-row
-                    className="border-border/40 transition-colors duration-150 ease-out hover:bg-secondary/40"
-                  >
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-primary/15 to-teal/15 text-xs font-semibold text-primary">
-                          {getInitials(user.firstName ?? '?')}
-                        </div>
-                        <span className="font-medium">{user.firstName ?? user.name ?? '—'}</span>
+              users.map((user) => (
+                <TableRow
+                  key={user.id}
+                  data-row
+                  className="border-border/40 transition-colors duration-150 ease-out hover:bg-secondary/40"
+                >
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-primary/15 to-teal/15 text-xs font-semibold text-primary">
+                        {getInitials(user.firstName ?? '?')}
                       </div>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{user.lastName ?? '—'}</TableCell>
-                    <TableCell className="text-muted-foreground">{user.email}</TableCell>
-
-                    <TableCell>
-                      <span
-                        className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium capitalize ${roleStyles[String(user.role ?? '3')] ?? 'bg-muted/60 text-muted-foreground'}`}
+                      <span className="font-medium">{user.firstName ?? user.name ?? '—'}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{user.lastName ?? '—'}</TableCell>
+                  <TableCell className="text-muted-foreground">{user.email}</TableCell>
+                  <TableCell>
+                    <span
+                      className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium capitalize ${roleStyles[String(user.role ?? '3')] ?? 'bg-muted/60 text-muted-foreground'}`}
+                    >
+                      {normalizeRole(user.role)}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="cursor-pointer hover:bg-secondary"
+                        onClick={() => openEdit(user)}
+                        title="Edit"
                       >
-                        {normalizeRole(user.role)}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="cursor-pointer hover:bg-secondary"
-                          onClick={() => openEdit(user)}
-                          title="Edit"
-                        >
-                          <PencilIcon className="size-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="cursor-pointer text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => setConfirmDelete(user)}
-                          disabled={deletingId === user.id}
-                          title="Delete"
-                        >
-                          <TrashIcon className="size-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )
-              })
+                        <PencilIcon className="size-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="cursor-pointer text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => setConfirmDelete(user)}
+                        disabled={deletingId === user.id}
+                        title="Delete"
+                      >
+                        <TrashIcon className="size-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
             )}
           </TableBody>
         </Table>
-        {!loading && totalPages > 1 && (
+        {!isLoading && totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-border/40">
             <p className="hidden text-sm text-muted-foreground lg:block">
               {(page - 1) * BACKEND_PAGE_SIZE + 1}–{Math.min(page * BACKEND_PAGE_SIZE, totalUsers)} of {totalUsers}

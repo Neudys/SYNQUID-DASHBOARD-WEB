@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import useSWR from 'swr'
 import gsap from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { Button } from '@/components/ui/button'
@@ -38,8 +39,8 @@ import {
   GraduationCapIcon,
 } from 'lucide-react'
 import { API } from '@/lib/endpoints'
+import { fetcher } from '@/lib/fetcher'
 import { DURATION, EASE, STAGGER, prefersReducedMotion } from '@/lib/animations'
-import { clientCache } from '@/lib/client-cache'
 
 gsap.registerPlugin(useGSAP)
 
@@ -106,8 +107,6 @@ function displayName(u: Pick<UserOption, 'name' | 'firstName' | 'lastName'>): st
 
 export function GroupsGrid() {
   const container = useRef<HTMLDivElement>(null)
-  const [groups, setGroups] = useState<Group[]>([])
-  const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [institutionFilter, setInstitutionFilter] = useState('')
 
@@ -127,74 +126,54 @@ export function GroupsGrid() {
   const [memberError, setMemberError] = useState<string | null>(null)
   const [removingId, setRemovingId] = useState<string | null>(null)
 
-  const [institutions, setInstitutions] = useState<Institution[]>([])
-  const [users, setUsers] = useState<UserOption[]>([])
-
   // ─── Data loading ────────────────────────────────────────────────────────────
 
-  const fetchGroups = useCallback(async (force = false) => {
-    const cached = clientCache.get<Group[]>('groups')
-    if (cached && !force) {
-      setGroups(cached)
-      setLoading(false)
-    } else if (!cached) {
-      setLoading(true)
-    }
-    
-    try {
-      const res = await fetch(`${API.groups}?page=1&limit=1000`)
-      if (!res.ok) return
-      const data = await res.json()
-      const list: Group[] = Array.isArray(data) ? data : data.groups ?? data.items ?? []
-      clientCache.set('groups', list)
-      setGroups(list)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const { data: groupsRaw, isLoading, mutate: mutateGroups } = useSWR<
+    Group[] | { groups?: Group[]; items?: Group[] }
+  >(
+    `${API.groups}?page=1&limit=1000`,
+    fetcher,
+    { revalidateOnFocus: true },
+  )
 
-  useEffect(() => { fetchGroups() }, [fetchGroups])
+  const { data: institutionsRaw } = useSWR<Institution[] | { institutions?: Institution[] }>(
+    API.institutions,
+    fetcher,
+    { revalidateOnFocus: true },
+  )
 
-  useEffect(() => {
-    const cached = clientCache.get<Institution[]>('institutions')
-    if (cached) { setInstitutions(cached) }
-    fetch(API.institutions)
-      .then(r => r.json())
-      .then(data => {
-        const list: Institution[] = Array.isArray(data) ? data : data.institutions ?? []
-        clientCache.set('institutions', list)
-        setInstitutions(list)
-      })
-      .catch(() => {})
-  }, [])
+  const { data: usersRaw } = useSWR<UserOption[] | { users?: UserOption[] }>(
+    API.users,
+    fetcher,
+    { revalidateOnFocus: true },
+  )
 
-  useEffect(() => {
-    const cached = clientCache.get<UserOption[]>('users')
-    if (cached) { setUsers(cached) }
-    fetch(API.users)
-      .then(r => r.json())
-      .then(data => {
-        const list: UserOption[] = Array.isArray(data) ? data : data.users ?? []
-        clientCache.set('users', list)
-        setUsers(list)
-      })
-      .catch(() => {})
-  }, [])
+  const groups: Group[] = Array.isArray(groupsRaw)
+    ? groupsRaw
+    : (groupsRaw as { groups?: Group[]; items?: Group[] })?.groups ??
+      (groupsRaw as { items?: Group[] })?.items ??
+      []
 
-  useEffect(() => { setPage(1) }, [groups, institutionFilter])
+  const institutions: Institution[] = Array.isArray(institutionsRaw)
+    ? institutionsRaw
+    : (institutionsRaw as { institutions?: Institution[] })?.institutions ?? []
+
+  const users: UserOption[] = Array.isArray(usersRaw)
+    ? usersRaw
+    : (usersRaw as { users?: UserOption[] })?.users ?? []
 
   // ─── GSAP ────────────────────────────────────────────────────────────────────
 
   useGSAP(
     () => {
-      if (prefersReducedMotion() || loading) return
+      if (prefersReducedMotion() || isLoading) return
       gsap.fromTo(
         '[data-group-card]',
         { opacity: 0, y: 12, scale: 0.97 },
         { opacity: 1, y: 0, scale: 1, duration: DURATION.standard, ease: EASE.out, stagger: STAGGER.tight, clearProps: 'opacity,transform' },
       )
     },
-    { scope: container, dependencies: [loading, groups] },
+    { scope: container, dependencies: [isLoading, groups] },
   )
 
   // ─── Computed ────────────────────────────────────────────────────────────────
@@ -248,9 +227,8 @@ export function GroupsGrid() {
         body: JSON.stringify(payload),
       })
       if (res.ok) {
-        clientCache.del('groups')
         setFormOpen(false)
-        await fetchGroups(true)
+        await mutateGroups()
       } else {
         const text = await res.text().catch(() => '')
         let data: { message?: string; backendError?: unknown } = {}
@@ -266,8 +244,7 @@ export function GroupsGrid() {
     setDeletingId(id)
     try {
       await fetch(`${API.groups}/${id}`, { method: 'DELETE' })
-      clientCache.del('groups')
-      await fetchGroups(true)
+      await mutateGroups()
     } finally {
       setDeletingId(null)
       setConfirmDelete(null)
@@ -304,14 +281,12 @@ export function GroupsGrid() {
       })
       if (res.ok) {
         setAddUserId('')
-        // Refresh members list
         const r2 = await fetch(`${API.groups}/${selectedGroup.id}/members?page=1&limit=1000`)
         if (r2.ok) {
           const data = await r2.json()
           setMembers(Array.isArray(data) ? data : data.members ?? data.items ?? [])
         }
-        clientCache.del('groups')
-        await fetchGroups(true)
+        await mutateGroups()
       } else {
         const data = await res.json().catch(() => ({}))
         setMemberError(data.message ?? 'Error al agregar miembro')
@@ -327,8 +302,7 @@ export function GroupsGrid() {
     try {
       await fetch(`${API.groups}/${selectedGroup.id}/members/${userId}`, { method: 'DELETE' })
       setMembers(prev => prev.filter(m => m.id !== userId))
-      clientCache.del('groups')
-      await fetchGroups(true)
+      await mutateGroups()
     } finally {
       setRemovingId(null)
     }
@@ -348,7 +322,7 @@ export function GroupsGrid() {
           <div className="min-w-0">
             <p className="text-sm font-semibold text-foreground">Groups</p>
             <p className="text-xs text-muted-foreground">
-              {loading ? 'Loading…' : `${filteredGroups.length} ${filteredGroups.length === 1 ? 'group' : 'groups'}`}
+              {isLoading ? 'Loading…' : `${filteredGroups.length} ${filteredGroups.length === 1 ? 'group' : 'groups'}`}
             </p>
           </div>
         </div>
@@ -385,7 +359,7 @@ export function GroupsGrid() {
       </div>
 
       {/* Grid */}
-      {loading ? (
+      {isLoading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="rounded-xl border border-border/60 bg-card/80 p-5 flex flex-col gap-3">
@@ -491,7 +465,7 @@ export function GroupsGrid() {
       )}
 
       {/* Pagination */}
-      {!loading && totalPages > 1 && (
+      {!isLoading && totalPages > 1 && (
         <div className="flex items-center justify-between rounded-lg border border-border/40 bg-card/50 px-4 py-3">
           <p className="hidden text-sm text-muted-foreground lg:block tabular-nums">
             {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredGroups.length)} of {filteredGroups.length}

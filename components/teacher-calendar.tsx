@@ -28,6 +28,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import type { TeacherGroup } from '@/components/teacher-group-selector'
+import { POLL_INTERVAL } from '@/lib/fetcher'
 
 interface Student {
   userId: string
@@ -128,15 +129,15 @@ export function TeacherCalendar({ groups }: Props) {
     ? new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime() > today.getTime()
     : false
 
-  // Carga alumnos + DailyAttendance del dÃ­a en paralelo y construye el roster
-  const loadRoster = useCallback(async () => {
+  // Carga alumnos + DailyAttendance del día en paralelo y construye el roster
+  const loadRoster = useCallback(async (silent = false) => {
     if (!groupId || !date) { setRoster([]); return }
-    setLoading(true)
+    if (!silent) setLoading(true)
     try {
       const iso = toLocalDate(date)
       const [studentsRes, dailyRes] = await Promise.all([
-        fetch(`/api/teacher/groups/${groupId}/students?page=1&limit=100`),
-        fetch(`/api/attendance/daily/group/${groupId}?date=${iso}`),
+        fetch(`/api/teacher/groups/${groupId}/students?page=1&limit=100`, { cache: 'no-store' }),
+        fetch(`/api/attendance/daily/group/${groupId}?date=${iso}`, { cache: 'no-store' }),
       ])
       const [studentsBody, dailyBody] = await Promise.all([
         studentsRes.json().catch(() => ({})),
@@ -146,7 +147,6 @@ export function TeacherCalendar({ groups }: Props) {
       const studentsList: Student[] = Array.isArray(studentsBody?.data) ? studentsBody.data : []
       const attendances: DailyRecord[] = Array.isArray(dailyBody?.attendances) ? dailyBody.attendances : []
 
-      // scheduleId del primer registro existente (fallback para creaciÃ³n manual)
       const attendanceMap = new Map(attendances.map(a => [a.userId, a]))
       setRoster(studentsList.map(s => {
         const att = attendanceMap.get(s.userId)
@@ -155,20 +155,20 @@ export function TeacherCalendar({ groups }: Props) {
           firstName: s.firstName,
           lastName: s.lastName,
           email: s.email,
-          status: att?.status ?? 1, // sin fila = Ausente
+          status: att?.status ?? 1,
           isManuallyModified: !!att?.modifiedById,
         }
       }))
     } catch {
-      setRoster([])
+      if (!silent) setRoster([])
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [groupId, date])
 
-  const loadMonth = useCallback(async () => {
+  const loadMonth = useCallback(async (silent = false) => {
     if (!groupId || !date || !today) { setMonthRecords([]); return }
-    setLoading(true)
+    if (!silent) setLoading(true)
     try {
       const first = new Date(date.getFullYear(), date.getMonth(), 1)
       const last = new Date(date.getFullYear(), date.getMonth() + 1, 0)
@@ -176,6 +176,7 @@ export function TeacherCalendar({ groups }: Props) {
       const to = toLocalDate(last > today ? today : last)
       const res = await fetch(
         `/api/attendance/history?groupId=${groupId}&from=${from}&to=${to}&page=1&limit=2000`,
+        { cache: 'no-store' },
       )
       const body = await res.json().catch(() => ({}))
       setMonthRecords(
@@ -184,15 +185,23 @@ export function TeacherCalendar({ groups }: Props) {
         : Array.isArray(body) ? body : [],
       )
     } catch {
-      setMonthRecords([])
+      if (!silent) setMonthRecords([])
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [groupId, date, today])
 
   useEffect(() => {
     if (view === 'day') loadRoster()
     else loadMonth()
+  }, [view, loadRoster, loadMonth])
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (view === 'day') loadRoster(true)
+      else loadMonth(true)
+    }, POLL_INTERVAL)
+    return () => clearInterval(id)
   }, [view, loadRoster, loadMonth])
 
   async function updateStatus(entry: RosterEntry, newStatus: number) {

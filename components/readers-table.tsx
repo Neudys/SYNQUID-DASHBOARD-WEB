@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import useSWR from 'swr'
 import gsap from 'gsap'
 import { useGSAP } from '@gsap/react'
 import {
@@ -43,8 +44,8 @@ import {
   ChevronsRightIcon,
 } from 'lucide-react'
 import { API } from '@/lib/endpoints'
+import { fetcher } from '@/lib/fetcher'
 import { DURATION, EASE, STAGGER, prefersReducedMotion } from '@/lib/animations'
-import { clientCache } from '@/lib/client-cache'
 
 gsap.registerPlugin(useGSAP)
 
@@ -68,8 +69,6 @@ const PAGE_SIZE = 10
 
 export function ReadersTable() {
   const container = useRef<HTMLDivElement>(null)
-  const [readers, setReaders] = useState<Reader[]>([])
-  const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Reader>(EMPTY)
@@ -80,45 +79,26 @@ export function ReadersTable() {
   const [confirmDelete, setConfirmDelete] = useState<Reader | null>(null)
   const [confirmRegenerate, setConfirmRegenerate] = useState<Reader | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
-  const [institutions, setInstitutions] = useState<Institution[]>([])
 
-  useEffect(() => { setPage(1) }, [readers])
+  const { data: readersRaw, isLoading, mutate } = useSWR<Reader[] | { items?: Reader[] }>(
+    API.readers,
+    fetcher,
+    { revalidateOnFocus: true },
+  )
 
-  useEffect(() => {
-    const cached = clientCache.get<Institution[]>('institutions')
-    if (cached) { setInstitutions(cached) }
-    fetch(API.institutions)
-      .then((r) => r.json())
-      .then((data) => {
-        const list: Institution[] = Array.isArray(data) ? data : data.items ?? []
-        clientCache.set('institutions', list)
-        setInstitutions(list)
-      })
-      .catch(() => {})
-  }, [])
+  const { data: institutionsRaw } = useSWR<Institution[] | { institutions?: Institution[] }>(
+    API.institutions,
+    fetcher,
+    { revalidateOnFocus: true },
+  )
 
-  const fetchReaders = useCallback(async (force = false) => {
-    const cached = clientCache.get<Reader[]>('readers')
-    if (cached && !force) {
-      setReaders(cached)
-      setLoading(false)
-    } else if (!cached) {
-      setLoading(true)
-    }
-    try {
-      const res = await fetch(API.readers)
-      const data = await res.json()
-      const list: Reader[] = Array.isArray(data) ? data : data.items ?? []
-      clientCache.set('readers', list)
-      setReaders(list)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const readers: Reader[] = Array.isArray(readersRaw)
+    ? readersRaw
+    : (readersRaw as { items?: Reader[] })?.items ?? []
 
-  useEffect(() => {
-    fetchReaders()
-  }, [fetchReaders])
+  const institutions: Institution[] = Array.isArray(institutionsRaw)
+    ? institutionsRaw
+    : (institutionsRaw as { institutions?: Institution[] })?.institutions ?? []
 
   useGSAP(
     () => {
@@ -140,7 +120,7 @@ export function ReadersTable() {
 
   useGSAP(
     () => {
-      if (prefersReducedMotion() || loading) return
+      if (prefersReducedMotion() || isLoading) return
       gsap.fromTo(
         '[data-row]',
         { opacity: 0, y: 6 },
@@ -154,7 +134,7 @@ export function ReadersTable() {
         },
       )
     },
-    { scope: container, dependencies: [loading, readers] },
+    { scope: container, dependencies: [isLoading, readers] },
   )
 
   function openCreate() {
@@ -189,9 +169,8 @@ export function ReadersTable() {
         }),
       })
       if (res.ok) {
-        clientCache.del('readers')
         setDialogOpen(false)
-        await fetchReaders(true)
+        await mutate()
       } else {
         const data = await res.json().catch(() => ({}))
         setSaveError(data.message ?? 'Error al guardar el dispositivo')
@@ -205,8 +184,7 @@ export function ReadersTable() {
     setDeletingId(id)
     try {
       await fetch(`${API.readers}/${id}`, { method: 'DELETE' })
-      clientCache.del('readers')
-      await fetchReaders(true)
+      await mutate()
     } finally {
       setDeletingId(null)
       setConfirmDelete(null)
@@ -218,13 +196,12 @@ export function ReadersTable() {
     try {
       const res = await fetch(`${API.readers}/${id}/regenerate-key`, { method: 'POST' })
       if (res.ok) {
-        clientCache.del('readers')
         const data = await res.json()
         setNewKey({
           readerId: id,
           key: data.apiKey ?? data.key ?? '(check server response)',
         })
-        await fetchReaders(true)
+        await mutate()
       }
     } finally {
       setRegeneratingId(null)
@@ -280,7 +257,7 @@ export function ReadersTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
+            {isLoading ? (
               Array.from({ length: 4 }).map((_, i) => (
                 <TableRow key={i} className="border-border/40">
                   {Array.from({ length: 5 }).map((__, j) => (
@@ -361,7 +338,7 @@ export function ReadersTable() {
             )}
           </TableBody>
         </Table>
-        {!loading && totalPages > 1 && (
+        {!isLoading && totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-border/40">
             <p className="hidden text-sm text-muted-foreground lg:block">
               {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, readers.length)} of {readers.length}

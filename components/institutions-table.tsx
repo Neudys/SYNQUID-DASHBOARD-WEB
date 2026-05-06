@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import useSWR from 'swr'
 import gsap from 'gsap'
 import { useGSAP } from '@gsap/react'
 import {
@@ -35,8 +36,8 @@ import {
   ChevronsRightIcon,
 } from 'lucide-react'
 import { API } from '@/lib/endpoints'
+import { fetcher } from '@/lib/fetcher'
 import { DURATION, EASE, STAGGER, prefersReducedMotion } from '@/lib/animations'
-import { clientCache } from '@/lib/client-cache'
 
 gsap.registerPlugin(useGSAP)
 
@@ -50,13 +51,15 @@ interface Institution {
   createdAt?: string
 }
 
+interface InstitutionsResponse {
+  institutions?: Institution[]
+}
+
 const EMPTY: Institution = { id: '', name: '', address: '', phone: '', contactEmail: '', timezone: 'Europe/Madrid' }
 const PAGE_SIZE = 10
 
 export function InstitutionsTable() {
   const container = useRef<HTMLDivElement>(null)
-  const [institutions, setInstitutions] = useState<Institution[]>([])
-  const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Institution>(EMPTY)
@@ -65,29 +68,15 @@ export function InstitutionsTable() {
   const [confirmDelete, setConfirmDelete] = useState<Institution | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
 
-  useEffect(() => { setPage(1) }, [institutions])
+  const { data: raw, isLoading, mutate } = useSWR<Institution[] | InstitutionsResponse>(
+    API.institutions,
+    fetcher,
+    { revalidateOnFocus: true },
+  )
 
-  const fetchInstitutions = useCallback(async (force = false) => {
-    const cached = clientCache.get<Institution[]>('institutions')
-    if (cached && !force) {
-      setInstitutions(cached)
-      setLoading(false)
-    } else if (!cached) {
-      setLoading(true)
-    }
-    try {
-      const res = await fetch(API.institutions)
-      if (!res.ok) return
-      const data = await res.json()
-      const list: Institution[] = Array.isArray(data) ? data : data.institutions ?? []
-      clientCache.set('institutions', list)
-      setInstitutions(list)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => { fetchInstitutions() }, [fetchInstitutions])
+  const institutions: Institution[] = Array.isArray(raw)
+    ? raw
+    : (raw as InstitutionsResponse)?.institutions ?? []
 
   useGSAP(
     () => {
@@ -103,14 +92,14 @@ export function InstitutionsTable() {
 
   useGSAP(
     () => {
-      if (prefersReducedMotion() || loading) return
+      if (prefersReducedMotion() || isLoading) return
       gsap.fromTo(
         '[data-row]',
         { opacity: 0, y: 6 },
         { opacity: 1, y: 0, duration: DURATION.standard, ease: EASE.out, stagger: STAGGER.tight, clearProps: 'opacity,transform' },
       )
     },
-    { scope: container, dependencies: [loading, institutions] },
+    { scope: container, dependencies: [isLoading, institutions] },
   )
 
   function openCreate() {
@@ -144,9 +133,8 @@ export function InstitutionsTable() {
         }),
       })
       if (res.ok) {
-        clientCache.del('institutions')
         setDialogOpen(false)
-        await fetchInstitutions(true)
+        await mutate()
       } else {
         const data = await res.json().catch(() => ({}))
         setSaveError(data.message ?? 'Error al guardar la institución')
@@ -160,8 +148,7 @@ export function InstitutionsTable() {
     setDeletingId(id)
     try {
       await fetch(`${API.institutions}/${id}`, { method: 'DELETE' })
-      clientCache.del('institutions')
-      await fetchInstitutions(true)
+      await mutate()
     } finally {
       setDeletingId(null)
       setConfirmDelete(null)
@@ -182,7 +169,7 @@ export function InstitutionsTable() {
           <div className="min-w-0">
             <p className="text-sm font-semibold text-foreground">Institutions</p>
             <p className="text-xs text-muted-foreground">
-              {loading ? 'Loading…' : `${institutions.length} ${institutions.length === 1 ? 'institution' : 'institutions'}`}
+              {isLoading ? 'Loading…' : `${institutions.length} ${institutions.length === 1 ? 'institution' : 'institutions'}`}
             </p>
           </div>
         </div>
@@ -208,7 +195,7 @@ export function InstitutionsTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
+            {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i} className="border-border/40">
                   <TableCell><Skeleton className="h-4 w-40" /></TableCell>
@@ -262,7 +249,7 @@ export function InstitutionsTable() {
           </TableBody>
         </Table>
 
-        {!loading && totalPages > 1 && (
+        {!isLoading && totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-border/40">
             <p className="hidden text-sm text-muted-foreground lg:block tabular-nums">
               {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, institutions.length)} of {institutions.length}

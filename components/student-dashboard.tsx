@@ -1,6 +1,8 @@
 ﻿'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import useSWR from 'swr'
+import { fetcher, POLL_INTERVAL } from '@/lib/fetcher'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/loading-spinner'
@@ -105,9 +107,18 @@ function worstStatus(recs: AttendanceRecord[]): number {
 export function StudentDashboard() {
   const [activeTab, setActiveTab] = useState<'faltas' | 'clases' | 'calendario'>('faltas')
 
-  // --- Faltas ---
-  const [records, setRecords] = useState<AttendanceRecord[]>([])
-  const [loadingFaltas, setLoadingFaltas] = useState(true)
+  // --- Faltas (SWR con polling) ---
+  const { data: faltasRaw, isLoading: loadingFaltas } = useSWR<AttendanceRecord[]>(
+    '/api/attendance/my',
+    fetcher,
+    {
+      refreshInterval: POLL_INTERVAL,
+      dedupingInterval: 2_000,
+      revalidateOnFocus: true,
+      keepPreviousData: true,
+    },
+  )
+  const records: AttendanceRecord[] = Array.isArray(faltasRaw) ? faltasRaw : []
 
   // --- Mis Clases ---
   const [groups, setGroups] = useState<Group[]>([])
@@ -124,15 +135,6 @@ export function StudentDashboard() {
     const d = new Date()
     d.setHours(0, 0, 0, 0)
     return d
-  }, [])
-
-  // Fetch Faltas al montar
-  useEffect(() => {
-    fetch('/api/attendance/my')
-      .then((r) => r.ok ? r.json() : [])
-      .then((data) => setRecords(Array.isArray(data) ? data : []))
-      .catch(() => setRecords([]))
-      .finally(() => setLoadingFaltas(false))
   }, [])
 
   // Fetch Clases cuando se activa el tab
